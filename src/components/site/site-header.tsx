@@ -9,6 +9,7 @@ import { useMeta } from "@/lib/meta";
 import { Button, Container, Logo, cn } from "@/components/ui";
 import { categoryIcon } from "@/components/category-icon";
 import { homeFor, isAdminRole, useMe } from "@/lib/me";
+import { NotificationsBell } from "@/components/notifications-bell";
 
 type MenuItem = { href: string; label: string; hint?: string };
 
@@ -138,6 +139,7 @@ export function SiteHeader() {
         <div className="ml-auto flex items-center gap-2 md:ml-0">
           {me ? (
             <div className="flex h-16 items-center gap-3 text-sm font-medium text-ink-800">
+              <NotificationsBell />
               <Link href={homeFor(me.roles)} className="hidden px-1 hover:text-ink-950 sm:block">{isAdminRole(me.roles) ? "Admin" : "Dashboard"}</Link>
               <Dropdown align="right" trigger={<span className="grid size-9 place-items-center rounded-full bg-ink-900 text-sm font-semibold text-white" aria-label="Account menu">{me.name.charAt(0).toUpperCase()}</span>}>
                 <p className="truncate px-3 py-2 text-xs text-ink-500">{me.name}</p>

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, type ReactNode } from "react";
 import { useMe } from "@/lib/me";
+import { NotificationsBell } from "@/components/notifications-bell";
 import { Logo, Spinner, StatusBadge, cn } from "@/components/ui";
 
 type NavItem = { href: string; label: string; icon: LucideIcon; show?: (roles: string[]) => boolean };
@@ -75,9 +76,10 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
       <main className="p-4 sm:p-8">
-        <div className="mb-4 flex items-center justify-between lg:hidden">
-          <span className="truncate text-sm font-semibold text-ink-900">{title}</span>
-          <button onClick={logout} className="cursor-pointer text-xs underline">Log out</button>
+        <div className="mb-6 flex items-center justify-end gap-2">
+          <span className="mr-auto truncate text-sm font-semibold text-ink-900 lg:hidden">{title}</span>
+          <NotificationsBell />
+          <button onClick={logout} className="cursor-pointer text-xs underline lg:hidden">Log out</button>
         </div>
         {children}
       </main>

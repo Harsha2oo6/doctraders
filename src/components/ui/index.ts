@@ -10,3 +10,4 @@ export * from "./toast";
 export * from "./choice-cards";
 export * from "./tabs";
 export * from "./dialog";
+export * from "./timeline";

@@ -1,16 +1,19 @@
 "use client";
 
-import { FolderTree, Handshake, LayoutDashboard, ListChecks, LogOut, Users, type LucideIcon } from "lucide-react";
+import { FolderTree, Handshake, Inbox, LayoutDashboard, ListChecks, LogOut, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { apiFetch } from "@/lib/api-client";
 import { useMe } from "@/lib/me";
+import { NotificationsBell } from "@/components/notifications-bell";
 import { Logo, Spinner, StatusBadge, cn } from "@/components/ui";
 
-type NavItem = { href: string; label: string; icon: LucideIcon; superOnly?: boolean };
+type NavItem = { href: string; label: string; icon: LucideIcon; superOnly?: boolean; count?: "newEnquiries" };
 
 const NAV: NavItem[] = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
+  { href: "/admin/enquiries", label: "Enquiries", icon: Inbox, count: "newEnquiries" },
   { href: "/admin/deals", label: "Deals", icon: Handshake },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/listings", label: "Listings", icon: ListChecks },
@@ -25,6 +28,16 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { me, loading, logout } = useMe();
   const isSuper = !!me?.roles.includes("superadmin");
+  const [newEnquiries, setNewEnquiries] = useState(0);
+
+  // "new" badge on Enquiries; refreshed on every page change and every minute.
+  useEffect(() => {
+    if (!me) return;
+    const load = () => apiFetch<{ enquiries: { new: number } }>("/admin/stats").then((s) => setNewEnquiries(s.enquiries.new), () => {});
+    void load();
+    const t = setInterval(load, 60_000);
+    return () => clearInterval(t);
+  }, [me, pathname]);
 
   useEffect(() => {
     if (!loading && !me) router.replace(`/login?next=${encodeURIComponent(pathname)}`);
@@ -38,9 +51,10 @@ export function AdminShell({ children }: { children: ReactNode }) {
         <Link href="/admin" aria-label="Admin overview"><Logo dark /></Link>
         <p className="mt-1 text-xs text-brand-400">Admin</p>
         <nav className="mt-4 flex gap-1 overflow-x-auto lg:mt-6 lg:flex-col" aria-label="Admin">
-          {NAV.filter((n) => !n.superOnly || isSuper).map(({ href, label, icon: Icon }) => (
+          {NAV.filter((n) => !n.superOnly || isSuper).map(({ href, label, icon: Icon, count }) => (
             <Link key={href} href={href} className={cn("flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium hover:bg-ink-800", isActive(pathname, href) && "bg-ink-800 text-brand-300")}>
               <Icon className="size-4" />{label}
+              {count === "newEnquiries" && newEnquiries > 0 && <span className="ml-auto rounded-full bg-brand-500 px-1.5 text-[10px] font-bold text-white">{newEnquiries}</span>}
             </Link>
           ))}
         </nav>
@@ -53,9 +67,10 @@ export function AdminShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
       <main className="p-4 sm:p-8">
-        <div className="mb-4 flex items-center justify-between lg:hidden">
-          <span className="truncate text-sm font-semibold text-ink-900">{me.name}</span>
-          <button onClick={logout} className="cursor-pointer text-xs underline">Log out</button>
+        <div className="mb-6 flex items-center justify-end gap-2">
+          <span className="mr-auto truncate text-sm font-semibold text-ink-900 lg:hidden">{me.name}</span>
+          <NotificationsBell />
+          <button onClick={logout} className="cursor-pointer text-xs underline lg:hidden">Log out</button>
         </div>
         {children}
       </main>

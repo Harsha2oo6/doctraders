@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { BUSINESS_TYPES, INDIAN_STATES, LISTING_KINDS, TRADE_ROLES, UNITS, UPLOAD_LIMITS } from "./constants";
+import { BUSINESS_TYPES, ENQUIRY_STATUSES, INDIAN_STATES, LISTING_KINDS, TRADE_ROLES, UNITS, UPLOAD_LIMITS } from "./constants";
 
 /** Zod schemas shared by forms (client) and API routes (server). */
 
@@ -180,3 +180,25 @@ export const listingUpdateSchema = z
   .strict();
 export type ListingUpdateInput = z.input<typeof listingUpdateSchema>;
 export { checkListing };
+
+/* ---------------- enquiries & notifications ---------------- */
+
+export const objectId = z.string().trim().regex(/^[a-f0-9]{24}$/i, "Invalid id");
+
+/** POST /enquiries — "I'm interested". */
+export const enquirySchema = z.object({
+  listingId: objectId,
+  quantity: positive("Enter the quantity you want"),
+  message: optStr(1000),
+});
+export type EnquiryInput = z.input<typeof enquirySchema>;
+export type EnquiryValues = z.output<typeof enquirySchema>;
+
+/** PATCH /admin/enquiries/:id — deal_closed is only set by creating a deal. */
+export const enquiryStatusSchema = z.object({
+  status: z.enum(ENQUIRY_STATUSES).refine((s) => s !== "deal_closed", "Use “Convert to deal” to close a deal"),
+});
+
+export const noteSchema = z.object({ text: z.string().trim().min(1, "Write a note").max(2000) });
+
+export const notificationsReadSchema = z.object({ ids: z.array(objectId).max(200).optional() });

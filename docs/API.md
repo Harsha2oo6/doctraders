@@ -6,6 +6,8 @@ The website and the Android/iOS app use **the same endpoints**. This file is the
 - [System](#system): health, meta
 - [Auth & profile](#auth--profile): register, login, logout, me, change/forgot/reset password
 - [Categories, listings & uploads](#categories-listings--uploads)
+- [Interest (enquiries) & notifications](#interest-enquiries--notifications), contact
+- [Admin: enquiries & stats](#admin-enquiries--stats)
 <!-- sections are appended below by each feature -->
 
 ---
@@ -444,3 +446,171 @@ Auth: user. Your own listings, all statuses, newest first. Query: `kind`, `statu
 ```json
 { "data": [ { "id": "6ae43aa04eb077eaccb2586b", "status": "closed", "…": "public listing object" } ], "page": 1, "limit": 20, "total": 1 }
 ```
+
+### GET /listings/:id — `viewer` field
+
+When the request carries a token, the response also includes:
+
+```json
+{ "data": { "id": "6ae43aa04eb077eaccb2586b", "…": "public listing object", "viewer": { "isOwner": false, "enquiryId": "6ae44d81546769ba4191968d" } } }
+```
+
+Use it to decide the button: `isOwner` → hide "I'm interested"; `enquiryId` not null → show "Interest sent".
+
+---
+
+## Interest (enquiries) & notifications
+
+The **party enquiry** object (what buyers/sellers see). Never contains the other side's name/contacts or the admin's notes. `status` is the **party status**: `received` | `in_discussion` | `deal_done` | `closed` (labels in `meta.enquiryPartyStatuses`).
+
+```json
+{
+  "id": "6ae44d81546769ba4191968d",
+  "listingId": "6ae43aa04eb077eaccb2586b",
+  "listingKind": "offer",
+  "listingTitle": "Basmati rice 1121, 25 kg bags",
+  "quantity": 500,
+  "message": "Need 500 bags, Mumbai delivery",
+  "myRole": "buyer",
+  "counterparty": { "alias": "Seller #68435" },
+  "status": "in_discussion",
+  "dealId": null,
+  "createdAt": "2026-10-30T07:55:45.486Z",
+  "updatedAt": "2026-10-30T07:56:02.113Z"
+}
+```
+
+### POST /enquiries
+
+Auth: user. "I'm interested". Rules (README §5): on an **offer** you need the `buyer` role, on a **requirement** the `seller` role; not your own listing; the listing must be active; once per listing. Notifies all active admins (bell + email).
+
+```bash
+curl -X POST http://localhost:3000/api/v1/enquiries -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{ "listingId": "6ae43aa04eb077eaccb2586b", "quantity": 500, "message": "Need 500 bags, Mumbai delivery" }'
+```
+
+201 → party enquiry object (`status: "received"`).
+
+| Status | Example message |
+| --- | --- |
+| 400 | `{ "error": { "message": "Enter the quantity you want", "fields": { "quantity": "Enter the quantity you want" } } }` |
+| 403 | `"You cannot show interest in your own listing."` / `"Only buyers can show interest in offers. Add the buyer role in your profile."` |
+| 404 | `"This listing is not available."` |
+| 409 | `"You have already shown interest in this listing."` / `"This listing is closed and no longer takes interest."` |
+
+### GET /me/enquiries
+
+Auth: user. Enquiries **you sent**, newest first. Query: `status` (party key), `listingId`, `page`, `limit`.
+
+```json
+{ "data": [ { "id": "6ae44d81546769ba4191968d", "status": "in_discussion", "counterparty": { "alias": "Seller #68435" }, "…": "party enquiry object" } ], "page": 1, "limit": 20, "total": 1 }
+```
+
+### GET /notifications
+
+Auth: any. Your in-app notifications, newest first, plus `unreadCount`. Query: `unread=1`, `page`, `limit`. Poll every 30 s (push notifications are planned for later).
+
+```json
+{
+  "data": [
+    { "id": "6ae44d87546769ba419196b0", "type": "enquiry_new", "title": "New enquiry: Need 20 tonne toor dal", "body": "Seller wants 20 tonne", "link": "/admin/enquiries/6ae44d87546769ba419196a7", "read": false, "createdAt": "2026-10-30T07:55:51.902Z" }
+  ],
+  "page": 1, "limit": 10, "total": 2, "unreadCount": 2
+}
+```
+
+`type`: `enquiry_new`, `deal_created`, `payment_added`, `shipment_update`, `deal_completed`, `system`. `link` is a **website path**; the app can map it (`/dashboard/deals/<id>` → deal screen, `/dashboard/enquiries` → enquiries screen).
+
+### POST /notifications/read
+
+Auth: any. Body `{ "ids": ["6ae44d87546769ba419196b0"] }` marks those; an empty body or `{}` marks **all** as read.
+
+```json
+{ "data": { "updated": 2, "unreadCount": 0 } }
+```
+
+### POST /contact
+
+Auth: public. Website contact form → emails the Doctraders team.
+
+```bash
+curl -X POST http://localhost:3000/api/v1/contact -H "Content-Type: application/json" -d '{ "name": "Asha", "email": "asha@example.com", "message": "Do you cover Assam tea?" }'
+```
+
+201 `{ "data": { "ok": true } }`; 400 with `fields` for bad input.
+
+---
+
+## Admin: enquiries & stats
+
+All `/admin/*` endpoints need an `admin` or `superadmin` token (403 otherwise) and are the **only** endpoints that return contact details.
+
+The **admin enquiry** object:
+
+```json
+{
+  "id": "6ae44d81546769ba4191968d",
+  "listingId": "6ae43aa04eb077eaccb2586b",
+  "listingKind": "offer",
+  "listingTitle": "Basmati rice 1121, 25 kg bags",
+  "listing": { "id": "6ae43aa04eb077eaccb2586b", "title": "Basmati rice 1121, 25 kg bags", "enquiryCount": 2, "owner": { "alias": "Seller #68435", "id": "6ae4…", "name": "Ravi Kumar", "mobile": "9811111111", "…": "contact card" }, "…": "listing fields" },
+  "fromUserId": "6ae43629208a8118a01261a4",
+  "fromRole": "buyer",
+  "quantity": 500,
+  "message": "Need 500 bags, Mumbai delivery",
+  "status": "spoken",
+  "buyer": {
+    "id": "6ae43629208a8118a01261a4", "name": "Meena Shah", "email": "meena.buyer@example.com", "mobile": "9822222222",
+    "status": "active", "publicCode": "92729", "businessName": "Shah Foods", "businessType": "wholesaler",
+    "address": "5 Crawford Market", "city": "Mumbai", "state": "Maharashtra", "pincode": "400001", "gstNumber": null
+  },
+  "seller": { "id": "6ae43628208a8118a0126195", "name": "Ravi Kumar", "…": "contact card" },
+  "notes": [ { "id": "6ae44d98546769ba419196cc", "text": "Spoke to seller, price 2,400 final.", "byId": "6ae433ed…", "byName": "Harsha", "at": "2026-10-30T07:56:08.467Z" } ],
+  "statusHistory": [ { "status": "spoken", "byId": "6ae433ed…", "at": "2026-10-30T07:56:02.113Z" }, { "status": "new", "byId": "6ae43629…", "at": "2026-10-30T07:55:45.486Z" } ],
+  "dealId": null,
+  "createdAt": "2026-10-30T07:55:45.486Z",
+  "updatedAt": "2026-10-30T07:56:08.470Z"
+}
+```
+
+`notes` and `statusHistory` are latest first. In list responses `listing` is `null` and `notes`/`statusHistory` are empty (open the detail for them).
+
+### GET /admin/stats
+
+```json
+{
+  "data": {
+    "enquiries": { "new": 1, "inDiscussion": 1, "byStatus": { "new": 1, "contacted": 0, "spoken": 1, "negotiating": 0, "deal_closed": 0, "dropped": 0 }, "total": 2 },
+    "deals": { "active": 0, "completed": 0, "cancelled": 0, "activeValue": 0 },
+    "commission": { "pendingAmount": 0, "dueAmount": 0, "dueCount": 0, "paidAmount": 0, "paidCount": 0 },
+    "users": { "total": 3, "buyers": 2, "sellers": 3, "blocked": 0 },
+    "listings": { "active": 3, "activeOffers": 2, "activeRequirements": 1, "closed": 0, "blocked": 0, "total": 3 }
+  }
+}
+```
+
+### GET /admin/enquiries
+
+Query: `status` (one of `meta.enquiryStatuses`), `q` (listing title, buyer/seller name, business, mobile, email), `page`, `limit`. Extra `counts` per status (for the tabs; they respect `q` but not `status`).
+
+```json
+{ "data": [ { "id": "6ae44d81546769ba4191968d", "status": "new", "buyer": { "name": "Meena Shah", "mobile": "9822222222", "…": "" }, "seller": { "…": "" }, "…": "admin enquiry object" } ],
+  "page": 1, "limit": 20, "total": 2,
+  "counts": { "all": 2, "new": 1, "contacted": 0, "spoken": 1, "negotiating": 0, "deal_closed": 0, "dropped": 0 } }
+```
+
+### GET /admin/enquiries/:id
+
+Full admin enquiry object (with `listing`, notes and history). 404 if not found.
+
+### PATCH /admin/enquiries/:id
+
+Body `{ "status": "contacted" | "spoken" | "negotiating" | "dropped" | "new" }`. The admin may move freely; `deal_closed` is only set by creating a deal (400 if sent). 409 once a deal exists. Returns the full admin enquiry.
+
+```json
+{ "error": { "message": "Use “Convert to deal” to close a deal", "fields": { "status": "Use “Convert to deal” to close a deal" } } }
+```
+
+### POST /admin/enquiries/:id/notes
+
+Body `{ "text": "Spoke to seller, price ₹2,400 final." }` → 201 with the full admin enquiry (new note first in `notes`).
