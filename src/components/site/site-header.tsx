@@ -4,7 +4,7 @@ import { ChevronDown, LayoutGrid, Menu, Search, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type SyntheticEvent, type ReactNode } from "react";
-import { CATEGORIES } from "@/lib/constants";
+import { DEFAULT_CATEGORIES as CATEGORIES } from "@/lib/constants";
 import { Button, Container, Logo, cn } from "@/components/ui";
 import { categoryIcon } from "@/components/category-icon";
 

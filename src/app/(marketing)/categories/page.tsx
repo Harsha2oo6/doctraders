@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { CATEGORIES } from "@/lib/constants";
+import { DEFAULT_CATEGORIES as CATEGORIES } from "@/lib/constants";
 import { Card, CardBody, Container, Section } from "@/components/ui";
 import { CtaBand } from "@/components/site/cta-band";
 import { PageIntro } from "@/components/site/page-intro";

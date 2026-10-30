@@ -2,7 +2,7 @@
 
 import { Plus } from "lucide-react";
 import { useState } from "react";
-import { CATEGORIES } from "@/lib/constants";
+import { DEFAULT_CATEGORIES as CATEGORIES } from "@/lib/constants";
 import { Button, Card, CardBody, Input, PageHeader } from "@/components/ui";
 
 export default function CategoriesPage() {

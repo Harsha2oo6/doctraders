@@ -1,6 +1,7 @@
 // TEMPORARY (Prompt 1): the old mock records, so pages still render until they are wired to /api/v1.
 // Later prompts delete this file.
-import type { DealStage, ListingKind } from "./constants";
+import { z } from "zod";
+import { LISTING_KINDS, type ListingKind } from "./constants";
 
 export interface UserAccount {
   id: string;
@@ -208,3 +209,27 @@ export const deals: Deal[] = [
   { id: "d3", product: "Refined Sunflower Oil", seller: "Sunrise Agro Exports", buyer: "Gulf Foods Trading LLC", value: 105600000, currency: "INR", stage: "completed", commissionPercent: 1.25, commissionStatus: "due", agreementAccepted: true, updatedAt: "2026-10-05" },
   { id: "d4", product: "Raw Cotton Bales", seller: "Sunrise Agro Exports", buyer: "Hanoi Textiles JSC", value: 29920000, currency: "INR", stage: "completed", commissionPercent: 1.5, commissionStatus: "paid", agreementAccepted: true, updatedAt: "2026-09-22" },
 ];
+
+// Old (pre-README) values still used by the temporary post form and deal cards.
+export const DEAL_STAGES = ["enquiry", "negotiation", "agreement", "shipped", "completed"] as const;
+export type DealStage = (typeof DEAL_STAGES)[number];
+export const DELIVERY_TERMS = ["FOB", "CIF", "CFR", "EXW", "DAP", "Other"] as const;
+export const PAYMENT_TERMS = ["Advance", "LC at sight", "30 days credit", "60 days credit", "Other"] as const;
+export const LEGACY_UNITS = ["MT", "KG", "Litre", "Piece", "Container"] as const;
+
+export const legacyListingSchema = z.object({
+  kind: z.enum(LISTING_KINDS),
+  product: z.string().min(2, "Enter the product"),
+  category: z.string().min(1, "Choose a category"),
+  specification: z.string().min(5, "Add a short specification"),
+  quantity: z.coerce.number().positive("Enter a quantity"),
+  unit: z.enum(LEGACY_UNITS),
+  price: z.string().optional(),
+  priceOnRequest: z.boolean(),
+  location: z.string().min(2, "Enter a port or location"),
+  deliveryTerms: z.enum(DELIVERY_TERMS),
+  paymentTerms: z.enum(PAYMENT_TERMS),
+  validUntil: z.string().min(1, "Choose a validity date"),
+});
+export type ListingInput = z.input<typeof legacyListingSchema>;
+export type ListingValues = z.output<typeof legacyListingSchema>;

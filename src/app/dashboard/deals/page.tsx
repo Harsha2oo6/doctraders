@@ -2,7 +2,8 @@
 
 import { Check } from "lucide-react";
 import * as sample from "@/lib/sample-data";
-import { DEAL_STAGES, formatINR } from "@/lib/constants";
+import { formatINR } from "@/lib/format";
+import { DEAL_STAGES } from "@/lib/sample-data";
 import { Card, CardBody, EmptyState, PageHeader, Spinner, StatusBadge, cn } from "@/components/ui";
 
 export default function MyDealsPage() {

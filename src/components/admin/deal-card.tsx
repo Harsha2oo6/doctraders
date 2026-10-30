@@ -1,6 +1,6 @@
 "use client";
 
-import { DEAL_STAGES } from "@/lib/constants";
+import { DEAL_STAGES } from "@/lib/sample-data";
 import { formatINR } from "@/lib/format";
 import type { Deal } from "@/lib/sample-data";
 import { Badge, Card, CardBody, StatusBadge, cn } from "@/components/ui";

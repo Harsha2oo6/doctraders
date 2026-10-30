@@ -4,8 +4,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { CATEGORIES, DELIVERY_TERMS, PAYMENT_TERMS, UNITS } from "@/lib/constants";
-import { listingSchema, type ListingInput, type ListingValues } from "@/lib/validation";
+import { DEFAULT_CATEGORIES as CATEGORIES } from "@/lib/constants";
+import { DELIVERY_TERMS, LEGACY_UNITS as UNITS, PAYMENT_TERMS, legacyListingSchema as listingSchema, type ListingInput, type ListingValues } from "@/lib/sample-data";
 import { Button, Card, CardBody, Checkbox, Field, Input, PageHeader, Select, Textarea } from "@/components/ui";
 
 export default function PostListingPage() {

@@ -3,7 +3,7 @@
 import { MapPin } from "lucide-react";
 import { useMemo, useState } from "react";
 import * as sample from "@/lib/sample-data";
-import { CATEGORIES } from "@/lib/constants";
+import { DEFAULT_CATEGORIES as CATEGORIES } from "@/lib/constants";
 import { Badge, Button, Card, CardBody, EmptyState, Input, PageHeader, Select, Spinner } from "@/components/ui";
 
 export default function MarketplacePage() {

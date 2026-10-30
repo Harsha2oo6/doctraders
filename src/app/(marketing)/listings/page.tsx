@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { listings } from "@/lib/sample-data";
-import { CATEGORIES } from "@/lib/constants";
+import { DEFAULT_CATEGORIES as CATEGORIES } from "@/lib/constants";
 import { Button, Container, EmptyState, Input } from "@/components/ui";
 import { ListingCard } from "@/components/listings/listing-card";
 

@@ -1,7 +1,7 @@
 import { BadgeCheck, Ban, ChevronRight, FileCheck2, Handshake, ShieldCheck, Wallet } from "lucide-react";
 import Link from "next/link";
 import { listings } from "@/lib/sample-data";
-import { CATEGORIES } from "@/lib/constants";
+import { DEFAULT_CATEGORIES as CATEGORIES } from "@/lib/constants";
 import { Button, Container, Input } from "@/components/ui";
 import { categoryIcon } from "@/components/category-icon";
 import { ListingCard } from "@/components/listings/listing-card";
