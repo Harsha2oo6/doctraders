@@ -1,6 +1,6 @@
 "use client";
 
-import { FolderTree, Handshake, Inbox, LayoutDashboard, ListChecks, LogOut, Users, type LucideIcon } from "lucide-react";
+import { FolderTree, Handshake, Inbox, LayoutDashboard, ListChecks, LogOut, ShieldCheck, UserRound, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
@@ -18,6 +18,8 @@ const NAV: NavItem[] = [
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/listings", label: "Listings", icon: ListChecks },
   { href: "/admin/categories", label: "Categories", icon: FolderTree },
+  { href: "/admin/admins", label: "Admins", icon: ShieldCheck, superOnly: true },
+  { href: "/admin/account", label: "Account", icon: UserRound },
 ];
 
 const isActive = (pathname: string, href: string) => (href === "/admin" ? pathname === href : pathname.startsWith(href));

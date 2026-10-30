@@ -16,7 +16,7 @@ import { activeCategorySlugs } from "./categories";
 const RESET_TTL_MS = 60 * 60 * 1000; // 1 hour
 const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 
-async function assertUnique(email: string | undefined, mobile: string | undefined, exceptId?: string) {
+export async function assertUnique(email: string | undefined, mobile: string | undefined, exceptId?: string) {
   const fields: Record<string, string> = {};
   const not = exceptId ? { _id: { $ne: exceptId } } : {};
   if (email && (await UserModel.exists({ email, ...not }))) fields.email = "This email is already registered";
@@ -95,7 +95,9 @@ export async function updateMe(
     // Validate the merged business against the rules of the final roles (adding "seller" needs seller fields).
     traderCheck.parse({ business: merged });
     if (roles.has("seller")) sellerCheck.parse({ business: merged });
-    await assertCategories(input.business?.categories);
+    // Categories already on the profile stay valid even if an admin deactivated them later.
+    const saved = new Set(user.business?.categories ?? []);
+    await assertCategories(input.business?.categories?.filter((c) => !saved.has(c)));
     user.set("business", businessSchema.parse(merged));
     user.roles = [...roles];
   }

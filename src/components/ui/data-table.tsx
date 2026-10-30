@@ -60,13 +60,15 @@ export function DataTable<T>({ columns, data, searchPlaceholder = "Search…", p
 
   return (
     <div className="space-y-3">
-      <Input
-        value={search ? q : filter}
-        onChange={(e) => (search ? setQ(e.target.value) : setFilter(e.target.value))}
-        placeholder={searchPlaceholder}
-        aria-label={searchPlaceholder}
-        className="max-w-xs bg-white"
-      />
+      {(search || !server) && (
+        <Input
+          value={search ? q : filter}
+          onChange={(e) => (search ? setQ(e.target.value) : setFilter(e.target.value))}
+          placeholder={searchPlaceholder}
+          aria-label={searchPlaceholder}
+          className="max-w-xs bg-white"
+        />
+      )}
       <div className={cn("overflow-x-auto rounded-xl border border-ink-100 bg-white shadow-card", loading && "opacity-60")}>
         <table className="w-full text-left text-sm">
           <thead className="bg-ink-50 text-xs uppercase tracking-wide text-ink-500">

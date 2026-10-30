@@ -253,3 +253,34 @@ export const shipmentUpdateSchema = z.object({
   status: z.enum(["shipped", "reached"], { errorMap: () => ({ message: "Status must be shipped or reached" }) }),
   note: optStr(500),
 });
+
+/* ---------------- admin: users, listings, categories, admins ---------------- */
+
+const statusField = z.enum(["active", "blocked"], { errorMap: () => ({ message: "Status must be active or blocked" }) });
+
+export const accountStatusSchema = z.object({ status: statusField });
+export const listingStatusSchema = z.object({ status: statusField });
+
+const categoryName = z.string({ required_error: "Enter a category name" }).trim().min(2, "At least 2 characters").max(60, "Up to 60 characters");
+
+export const categoryCreateSchema = z.object({ name: categoryName });
+
+export const categoryUpdateSchema = z
+  .object({ name: categoryName.optional(), active: z.boolean().optional(), order: z.coerce.number().int().min(0).max(100000).optional() })
+  .strict();
+export type CategoryUpdateInput = z.infer<typeof categoryUpdateSchema>;
+
+export const adminCreateSchema = z.object({
+  name: z.string({ required_error: "Enter the full name" }).trim().min(2, "Enter the full name").max(100),
+  email: emailField,
+  mobile: mobileField,
+  password: passwordField,
+  superadmin: z.boolean().optional(),
+});
+export type AdminCreateInput = z.input<typeof adminCreateSchema>;
+export type AdminCreateValues = z.output<typeof adminCreateSchema>;
+
+export const adminUpdateSchema = z
+  .object({ status: statusField.optional(), password: passwordField.optional(), superadmin: z.boolean().optional() })
+  .strict();
+export type AdminUpdateValues = z.infer<typeof adminUpdateSchema>;

@@ -78,7 +78,8 @@ async function ownListing(user: User, id: string) {
 export async function updateListing(user: User, id: string, input: ListingUpdateInput & { price?: number | null; minOrderQuantity?: number | null }) {
   const l = await ownListing(user, id);
   if (input.status && l.status === "blocked") throw new HttpError(403, "This listing was blocked by Doctraders. Please contact support.");
-  await assertCategory(input.category);
+  // A listing keeps its category even if an admin deactivated it later.
+  if (input.category !== l.category) await assertCategory(input.category);
 
   const { status, ...fields } = input;
   for (const [k, v] of Object.entries(fields)) {

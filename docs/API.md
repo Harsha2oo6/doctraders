@@ -10,6 +10,8 @@ The website and the Android/iOS app use **the same endpoints**. This file is the
 - [Admin: enquiries & stats](#admin-enquiries--stats)
 - [Deals, payments & shipments](#deals-payments--shipments)
 - [Admin: deals](#admin-deals)
+- [Admin: users, listings, categories](#admin-users-listings-categories)
+- [Admin: admins (super admin only)](#admin-admins-super-admin-only)
 <!-- sections are appended below by each feature -->
 
 ---
@@ -786,3 +788,97 @@ Auth: admin. Body `{ "amount": 600000, "method": "bank", "note": "Advance", "pai
 ### DELETE /admin/deals/:id/payments/:paymentId
 
 Auth: admin. Undoes a wrong entry. 200 → admin deal object. 404 `"Payment not found."`.
+
+---
+
+## Admin: users, listings, categories
+
+### GET /admin/users
+
+Auth: admin. Buyers and sellers only (admins are not listed here). Query: `role` (`buyer`|`seller`), `status` (`active`|`blocked`), `q` (name, email, mobile, business name, city), `page`, `limit`.
+
+```json
+{ "data": [ { "id": "6ae43629208a8118a01261a4", "name": "Meena Shah", "email": "meena.buyer@example.com", "mobile": "9822222222", "roles": ["buyer", "seller"], "status": "active", "publicCode": "92729", "business": { "name": "Shah Foods", "…": "business" }, "lastLoginAt": "2026-10-30T10:26:12.000Z", "createdAt": "2026-10-30T06:16:09.806Z", "updatedAt": "2026-10-30T10:26:12.000Z", "createdBy": null } ], "page": 1, "limit": 20, "total": 3 }
+```
+
+### GET /admin/users/:id
+
+Auth: admin. The profile plus that user's latest 50 listings, enquiries (as buyer or seller) and deals. `totals` has the full counts. 404 `"User not found."`, also for admin accounts.
+
+```json
+{ "data": { "user": { "id": "6ae43629208a8118a01261a4", "…": "user" }, "listings": [ { "…": "admin listing" } ], "enquiries": [ { "…": "admin enquiry" } ], "deals": [ { "…": "admin deal" } ], "totals": { "listings": 1, "enquiries": 2, "deals": 1 } } }
+```
+
+### PATCH /admin/users/:id
+
+Auth: admin. Body `{ "status": "blocked" | "active" }`. A block applies on the user's next request: every call returns 403, login returns 403, and their listings disappear from public results. Unblocking brings them back. Returns the user. 404 for admin accounts.
+
+### GET /admin/listings
+
+Auth: admin. All listings, all statuses, newest first. Query: `status`, `kind`, `q` (title, city, owner name, business, mobile), `page`, `limit`. Extra `counts` per status; they respect `q` and `kind` but not `status`.
+
+The **admin listing** object is the public listing plus `enquiryCount`, and `owner` is the alias plus the full contact card:
+
+```json
+{ "data": [ { "id": "6ae44da9546769ba419196e3", "title": "Unjha cumin, Europe quality", "enquiryCount": 0, "owner": { "alias": "Seller #69980", "id": "6ae4362a…", "name": "Arjun Patel", "mobile": "9833333333", "businessName": "Patel Agro", "…": "contact card" }, "…": "public listing" } ], "page": 1, "limit": 20, "total": 3, "counts": { "all": 3, "active": 3, "closed": 0, "blocked": 0 } }
+```
+
+### PATCH /admin/listings/:id
+
+Auth: admin. Body `{ "status": "blocked" | "active" }`. Any listing can be blocked; `active` unblocks it. A listing its owner closed stays closed: 409 `"The owner closed this listing. Only they can reopen it."`. Returns the admin listing.
+
+### GET /admin/categories
+
+Auth: admin. All categories, including inactive ones, in display order.
+
+```json
+{ "data": [ { "id": "6ae433edb48dbeb87a5ec4fb", "name": "Rice & Grains", "slug": "rice-grains", "order": 0, "examples": "Basmati, non-basmati, wheat, maize, millets", "active": true, "listingCount": 1, "createdAt": "2026-10-30T05:58:37.000Z" } ] }
+```
+
+### POST /admin/categories
+
+Auth: admin. Body `{ "name": "Honey & Bee Products" }` (2–60 chars). The slug is generated (`honey-bee-products`) and new categories go last. 201 → category. 409 `{ "error": { "message": "A category with this name already exists.", "fields": { "name": "Already exists" } } }`.
+
+### PATCH /admin/categories/:id
+
+Auth: admin. Body: any of `{ "name": "Honey", "active": false, "order": 3 }`. The slug never changes, so existing listings stay linked. Inactive categories disappear from `/categories`, `/meta` and the forms. Returns the category.
+
+### DELETE /admin/categories/:id
+
+Auth: admin. Deletes the category if no listing or business uses it; otherwise deactivates it.
+
+```json
+{ "data": { "deleted": false, "deactivated": true } }
+```
+
+---
+
+## Admin: admins (super admin only)
+
+Every endpoint here needs a `superadmin` token; a normal admin gets 403 `"You do not have access to this."`. To change their own account, an admin uses `PATCH /auth/me` (name, email, mobile) and `POST /auth/change-password`.
+
+### GET /admin/admins
+
+Query: `page`, `limit`. Oldest first. Returns the same user object as `/admin/users`, with `business: null`.
+
+### POST /admin/admins
+
+Body `{ "name": "Ravi Admin", "email": "ravi@yourdomain.com", "mobile": "9844444444", "password": "temporary-pass", "superadmin": false }`. The new admin is emailed a login link, never the password, so share the password privately. 201 → user. 400 with `fields`; 409 if the email or mobile is taken.
+
+### PATCH /admin/admins/:id
+
+Body: any of `{ "status": "blocked" | "active", "password": "new-password", "superadmin": true | false }`. Returns the user.
+
+| Status | Example message |
+| --- | --- |
+| 403 | `"You cannot change your own admin account here."` |
+| 404 | `"Admin not found."` |
+| 409 | `"This is the last super admin. Make someone else a super admin first."` |
+
+### DELETE /admin/admins/:id
+
+Removes the account and its notifications. Notes and records the admin made stay. Same 403, 404 and 409 rules as PATCH.
+
+```json
+{ "data": { "deleted": true } }
+```

@@ -1,4 +1,3 @@
-import { BadgeCheck } from "lucide-react";
 import { cva, type VariantProps } from "class-variance-authority";
 import type { HTMLAttributes } from "react";
 import {
@@ -48,27 +47,9 @@ const MAP = {
 
 export type StatusDomain = keyof typeof MAP;
 
-/** Legacy map for pages still on sample data (removed when they are wired to the API). */
-const LEGACY_TONE: Record<string, Tone> = {
-  pending: "warning", approved: "success", rejected: "danger", active: "success", blocked: "danger", expired: "neutral",
-  new: "brand", "in-progress": "warning", closed: "neutral", due: "warning", paid: "success", "not-applicable": "neutral", cancelled: "danger",
-};
-
-export function StatusBadge({ status, domain, className }: { status: string; domain?: StatusDomain; className?: string }) {
-  if (domain) {
-    const m = MAP[domain];
-    const tone = (m.tones as Record<string, Tone>)[status] ?? "neutral";
-    const label = (m.labels as Record<string, string>)[status];
-    return <Badge tone={tone} className={cn(!label && "capitalize", className)}>{label ?? status.replace(/[_-]/g, " ")}</Badge>;
-  }
-  return <Badge tone={LEGACY_TONE[status] ?? "neutral"} className={cn("capitalize", className)}>{status.replace("-", " ")}</Badge>;
-}
-
-/** Not used in v1 (no verification). Kept only until the last old page is rewired. */
-export function VerifiedBadge({ className }: { className?: string }) {
-  return (
-    <Badge tone="verified" className={className}>
-      <BadgeCheck className="size-3.5" /> Verified
-    </Badge>
-  );
+export function StatusBadge({ status, domain, className }: { status: string; domain: StatusDomain; className?: string }) {
+  const m = MAP[domain];
+  const tone = (m.tones as Record<string, Tone>)[status] ?? "neutral";
+  const label = (m.labels as Record<string, string>)[status];
+  return <Badge tone={tone} className={cn(!label && "capitalize", className)}>{label ?? status.replace(/[_-]/g, " ")}</Badge>;
 }

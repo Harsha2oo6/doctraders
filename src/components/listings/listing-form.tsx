@@ -71,6 +71,7 @@ export function ListingForm(props: Props) {
         <Select {...register("category")}>
           <option value="" disabled>Select…</option>
           {meta?.categories.map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}
+          {l && meta && !meta.categories.some((c) => c.slug === l.category) && <option value={l.category}>{l.category}</option>}
         </Select>
       </Field>
       <div className="grid grid-cols-[1fr_8rem] gap-3">
