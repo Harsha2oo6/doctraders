@@ -59,11 +59,11 @@ Login is **email or mobile + password**.
 | Framework | **Next.js 15 (App Router)**, React 19, TypeScript strict. **One app, not a monorepo.** |
 | Styling | Tailwind CSS v4, small in-house UI kit in `src/components/ui` |
 | Database | **MongoDB Atlas** + **Mongoose 8** |
-| API | **REST** Route Handlers under `src/app/api/**/route.ts` |
+| API | **REST** Route Handlers under `src/app/api/v1/**/route.ts` |
 | Auth | Email/mobile + password (`bcryptjs`), **JWT** signed with `jose` (HS256, 30 days) |
 | Validation | **Zod** — the same schemas validate forms (client) and requests (server) |
 | Email | **Resend** |
-| Image storage | **Vercel Blob** (server-side `put()` from `POST /api/uploads`) |
+| Image storage | **Vercel Blob** (server-side `put()` from `POST /api/v1/uploads`) |
 | Hosting | **Vercel** + custom domain |
 | Tables (admin) | `@tanstack/react-table` (existing `DataTable`) |
 | Icons | `lucide-react` |
@@ -74,7 +74,7 @@ Do **not** add other libraries (no NextAuth, no Redux, no XState, no tRPC, no Pr
 
 ## 3. Architecture rules (read before writing code)
 
-1. **All mutations go through `/api/*`.** No Server Actions for business logic. The Flutter app must be able to do everything the website does.
+1. **All mutations go through `/api/v1/*`.** No Server Actions for business logic. The Flutter app must be able to do everything the website does.
 2. **Thin routes, logic in services.** Route handler = parse → `requireAuth` → Zod validate → call `src/server/services/*` → return JSON. Public server components (e.g. `/listings`) may call the same service functions directly for SEO.
 3. **Auth works two ways with the same JWT:**
    - Web: `httpOnly` cookie `dt_token` (`secure` in production, `sameSite=lax`, 30 days).
@@ -95,6 +95,13 @@ Do **not** add other libraries (no NextAuth, no Redux, no XState, no tRPC, no Pr
 13. Dates are stored as `Date`, returned as ISO strings. Money is stored as **numbers in INR** (rupees, not paise) and shown with `formatINR()`.
 14. Keep it simple and readable. Small files, plain functions, clear names. No premature abstractions.
 15. **UI follows `DESIGN.md` exactly** — same theme tokens, components and class patterns. No new colours, fonts or UI libraries.
+16. **The API is a product, not a website helper.** The Android/iOS app will call the same endpoints, so:
+    - Every endpoint is under **`/api/v1`** (versioned, because installed apps can't be force-updated; breaking changes go to `/api/v2` later).
+    - The website's pages are just one client: client components call `/api/v1/*` through `src/lib/api-client.ts`, exactly like the app will. No page-only shortcuts for mutations.
+    - Nothing in an API depends on the browser: no redirects, no HTML responses, no reliance on cookies (Bearer works everywhere), no query-string secrets.
+    - Response shapes are stable and documented in **`docs/API.md`** (request + response example per endpoint), updated in the same commit as the code.
+    - Enums are returned as keys (`deal_closed`) with labels available from `GET /api/v1/meta`, so the app doesn't hard-code labels.
+    - Lists always paginate (`page`, `limit`, `total`). Dates are ISO 8601 UTC. IDs are strings. Money is a number in INR.
 
 ---
 
@@ -105,6 +112,8 @@ doctraders/
 ├─ README.md                 ← this file (project context)
 ├─ DESIGN.md                 ← design system: tokens, components, page patterns (UI source of truth)
 ├─ DEVELOPMENT.md            ← build plan and agent prompts
+├─ docs/
+│  └─ API.md                 ← endpoint reference with request/response examples (for the mobile app)
 ├─ .env.example
 ├─ next.config.ts
 ├─ package.json
@@ -130,7 +139,7 @@ doctraders/
    │  │  ├─ listings/
    │  │  ├─ categories/
    │  │  └─ admins/                   super admin only
-   │  └─ api/                REST endpoints (see section 6)
+   │  └─ api/v1/             REST endpoints (see section 6) — shared by website + mobile app
    ├─ components/
    │  ├─ ui/                 Button, Card, Badge, Input/Select/Textarea/Field, DataTable, Logo, layout bits
    │  ├─ site/               header, footer, marketing blocks
@@ -262,68 +271,76 @@ Rule: sum of all shipment quantities ≤ deal quantity. Only on active deals.
 
 ## 6. REST API
 
+All paths are under `/api/v1`. Full request/response examples live in `docs/API.md`.
+
 Auth column: **public**, **user** (any logged-in buyer/seller), **buyer**, **seller**, **party** (buyer or seller of that deal), **admin** (admin or superadmin), **super**.
+
+### System
+| Method | Path | Auth | Notes |
+| --- | --- | --- | --- |
+| GET | `/api/v1/health` | public | `{ ok, db }` |
+| GET | `/api/v1/meta` | public | Labels for every enum (roles, units, business types, Indian states, enquiry/deal/commission/shipment statuses incl. party labels), active categories, upload limits, `minAppVersion` (for forcing app updates later) |
 
 ### Auth & profile
 | Method | Path | Auth | Notes |
 | --- | --- | --- | --- |
-| POST | `/api/auth/register` | public | body: roles (`buyer`/`seller`, 1–2) + fields from section 1. Sets cookie, returns `{ user, token }`. Sends welcome email. |
-| POST | `/api/auth/login` | public | `{ identifier (email or mobile), password }` → `{ user, token }` + cookie. Blocked → 403. |
-| POST | `/api/auth/logout` | public | clears cookie |
-| GET | `/api/auth/me` | any | current user (own full profile) |
-| PATCH | `/api/auth/me` | user | update profile / business; can **add** a role (adding `seller` requires seller fields) |
-| POST | `/api/auth/change-password` | any | `{ currentPassword, newPassword }` |
-| POST | `/api/auth/forgot-password` | public | `{ email }` → always 200; emails reset link (token valid 1 h) |
-| POST | `/api/auth/reset-password` | public | `{ token, password }` |
+| POST | `/api/v1/auth/register` | public | body: roles (`buyer`/`seller`, 1–2) + fields from section 1. Sets cookie, returns `{ user, token }`. Sends welcome email. |
+| POST | `/api/v1/auth/login` | public | `{ identifier (email or mobile), password }` → `{ user, token }` + cookie. Blocked → 403. |
+| POST | `/api/v1/auth/logout` | public | clears cookie |
+| GET | `/api/v1/auth/me` | any | current user (own full profile) |
+| PATCH | `/api/v1/auth/me` | user | update profile / business; can **add** a role (adding `seller` requires seller fields) |
+| POST | `/api/v1/auth/change-password` | any | `{ currentPassword, newPassword }` |
+| POST | `/api/v1/auth/forgot-password` | public | `{ email }` → always 200; emails reset link (token valid 1 h) |
+| POST | `/api/v1/auth/reset-password` | public | `{ token, password }` |
 
 ### Public data
 | Method | Path | Auth | Notes |
 | --- | --- | --- | --- |
-| GET | `/api/categories` | public | active categories |
-| GET | `/api/listings` | public | `?kind&category&q&state&city&page&limit` → active listings only, owner as alias |
-| GET | `/api/listings/:id` | public | one active listing (alias only) |
+| GET | `/api/v1/categories` | public | active categories |
+| GET | `/api/v1/listings` | public | `?kind&category&q&state&city&page&limit` → active listings only, owner as alias |
+| GET | `/api/v1/listings/:id` | public | one active listing (alias only) |
 
 ### User (buyer/seller)
 | Method | Path | Auth | Notes |
 | --- | --- | --- | --- |
-| POST | `/api/uploads` | user/admin | `multipart/form-data` field `file`; jpeg/png/webp, ≤ 4 MB → `{ url }` |
-| POST | `/api/listings` | seller (offer) / buyer (requirement) | create, live immediately |
-| PATCH | `/api/listings/:id` | owner | edit; owner may set `active`/`closed`, never un-block |
-| DELETE | `/api/listings/:id` | owner | hard delete if 0 enquiries, else set `closed` |
-| GET | `/api/me/listings` | user | own listings, all statuses |
-| POST | `/api/enquiries` | buyer/seller | `{ listingId, quantity, message? }` — see interest rules |
-| GET | `/api/me/enquiries` | user | enquiries I sent, with party status label |
-| GET | `/api/me/deals` | user | deals where I am buyer or seller (no commission, other side as alias) |
-| GET | `/api/me/deals/:id` | party | one deal with payments summary + shipments |
-| POST | `/api/deals/:id/shipments` | seller of deal / admin | `{ quantity, status?: "packed", note? }` |
-| PATCH | `/api/deals/:id/shipments/:shipmentId` | seller of deal / admin | `{ status, note? }` forward only; notifies admins + buyer |
-| GET | `/api/notifications` | any | `?unread=1&page` → list + `unreadCount` |
-| POST | `/api/notifications/read` | any | `{ ids?: string[] }` (no ids = mark all read) |
+| POST | `/api/v1/uploads` | user/admin | `multipart/form-data` field `file`; jpeg/png/webp, ≤ 4 MB → `{ url }` |
+| POST | `/api/v1/listings` | seller (offer) / buyer (requirement) | create, live immediately |
+| PATCH | `/api/v1/listings/:id` | owner | edit; owner may set `active`/`closed`, never un-block |
+| DELETE | `/api/v1/listings/:id` | owner | hard delete if 0 enquiries, else set `closed` |
+| GET | `/api/v1/me/listings` | user | own listings, all statuses |
+| POST | `/api/v1/enquiries` | buyer/seller | `{ listingId, quantity, message? }` — see interest rules |
+| GET | `/api/v1/me/enquiries` | user | enquiries I sent, with party status label |
+| GET | `/api/v1/me/deals` | user | deals where I am buyer or seller (no commission, other side as alias) |
+| GET | `/api/v1/me/deals/:id` | party | one deal with payments summary + shipments |
+| POST | `/api/v1/deals/:id/shipments` | seller of deal / admin | `{ quantity, status?: "packed", note? }` |
+| PATCH | `/api/v1/deals/:id/shipments/:shipmentId` | seller of deal / admin | `{ status, note? }` forward only; notifies admins + buyer |
+| GET | `/api/v1/notifications` | any | `?unread=1&page` → list + `unreadCount` |
+| POST | `/api/v1/notifications/read` | any | `{ ids?: string[] }` (no ids = mark all read) |
 
 ### Admin
 | Method | Path | Auth | Notes |
 | --- | --- | --- | --- |
-| GET | `/api/admin/stats` | admin | counts: new enquiries, enquiries by status, active deals, commission due/paid, users, listings |
-| GET | `/api/admin/enquiries` | admin | `?status&q&page` with buyer + seller **full contact** and listing |
-| GET | `/api/admin/enquiries/:id` | admin | full detail incl. notes + history |
-| PATCH | `/api/admin/enquiries/:id` | admin | `{ status }` |
-| POST | `/api/admin/enquiries/:id/notes` | admin | `{ text }` |
-| POST | `/api/admin/deals` | admin | `{ enquiryId, quantity, unit, pricePerUnit, commissionPercent, adminNotes? }` → enquiry becomes `deal_closed`; notifies both parties |
-| GET | `/api/admin/deals` | admin | `?status&commissionStatus&q&page` |
-| GET | `/api/admin/deals/:id` | admin | full |
-| PATCH | `/api/admin/deals/:id` | admin | `{ status?, commissionStatus?, quantity?, pricePerUnit?, commissionPercent?, adminNotes? }` (recalculates totals) |
-| POST | `/api/admin/deals/:id/payments` | admin | `{ amount, method?, note?, paidAt? }`; notifies seller |
-| DELETE | `/api/admin/deals/:id/payments/:paymentId` | admin | undo a wrong entry |
-| GET | `/api/admin/users` | admin | `?role&status&q&page` (buyers/sellers only) |
-| GET | `/api/admin/users/:id` | admin | profile + their listings, enquiries, deals |
-| PATCH | `/api/admin/users/:id` | admin | `{ status: "active"|"blocked" }` |
-| GET | `/api/admin/listings` | admin | `?status&kind&q&page` with owner |
-| PATCH | `/api/admin/listings/:id` | admin | `{ status: "active"|"blocked" }` |
-| GET/POST | `/api/admin/categories` | admin | list all / create |
-| PATCH/DELETE | `/api/admin/categories/:id` | admin | edit, toggle active, delete if unused |
-| GET/POST | `/api/admin/admins` | super | list / create admin `{ name, email, mobile, password, superadmin?: boolean }` |
-| PATCH | `/api/admin/admins/:id` | super | `{ status?, password?, superadmin? }` — cannot change yourself |
-| DELETE | `/api/admin/admins/:id` | super | cannot delete yourself or the last super admin |
+| GET | `/api/v1/admin/stats` | admin | counts: new enquiries, enquiries by status, active deals, commission due/paid, users, listings |
+| GET | `/api/v1/admin/enquiries` | admin | `?status&q&page` with buyer + seller **full contact** and listing |
+| GET | `/api/v1/admin/enquiries/:id` | admin | full detail incl. notes + history |
+| PATCH | `/api/v1/admin/enquiries/:id` | admin | `{ status }` |
+| POST | `/api/v1/admin/enquiries/:id/notes` | admin | `{ text }` |
+| POST | `/api/v1/admin/deals` | admin | `{ enquiryId, quantity, unit, pricePerUnit, commissionPercent, adminNotes? }` → enquiry becomes `deal_closed`; notifies both parties |
+| GET | `/api/v1/admin/deals` | admin | `?status&commissionStatus&q&page` |
+| GET | `/api/v1/admin/deals/:id` | admin | full |
+| PATCH | `/api/v1/admin/deals/:id` | admin | `{ status?, commissionStatus?, quantity?, pricePerUnit?, commissionPercent?, adminNotes? }` (recalculates totals) |
+| POST | `/api/v1/admin/deals/:id/payments` | admin | `{ amount, method?, note?, paidAt? }`; notifies seller |
+| DELETE | `/api/v1/admin/deals/:id/payments/:paymentId` | admin | undo a wrong entry |
+| GET | `/api/v1/admin/users` | admin | `?role&status&q&page` (buyers/sellers only) |
+| GET | `/api/v1/admin/users/:id` | admin | profile + their listings, enquiries, deals |
+| PATCH | `/api/v1/admin/users/:id` | admin | `{ status: "active"|"blocked" }` |
+| GET | `/api/v1/admin/listings` | admin | `?status&kind&q&page` with owner |
+| PATCH | `/api/v1/admin/listings/:id` | admin | `{ status: "active"|"blocked" }` |
+| GET/POST | `/api/v1/admin/categories` | admin | list all / create |
+| PATCH/DELETE | `/api/v1/admin/categories/:id` | admin | edit, toggle active, delete if unused |
+| GET/POST | `/api/v1/admin/admins` | super | list / create admin `{ name, email, mobile, password, superadmin?: boolean }` |
+| PATCH | `/api/v1/admin/admins/:id` | super | `{ status?, password?, superadmin? }` — cannot change yourself |
+| DELETE | `/api/v1/admin/admins/:id` | super | cannot delete yourself or the last super admin |
 
 ---
 
@@ -339,7 +356,7 @@ Auth column: **public**, **user** (any logged-in buyer/seller), **buyer**, **sel
 | Registration | — | welcome email to user |
 | Forgot password | — | reset link |
 
-The bell (`components/notifications-bell.tsx`) polls `GET /api/notifications?unread=1` every 30 s and shows the count. Clicking an item marks it read and navigates to `link`.
+The bell (`components/notifications-bell.tsx`) polls `GET /api/v1/notifications?unread=1` every 30 s and shows the count. Clicking an item marks it read and navigates to `link`.
 
 Emails come from `EMAIL_FROM` (e.g. `Doctraders <no-reply@yourdomain.com>`). The domain must be verified in Resend (add the DNS records Resend gives you).
 
@@ -425,12 +442,24 @@ Scripts: `dev`, `build`, `start`, `lint`, `typecheck`, `seed`.
 
 ---
 
-## 11. Flutter app (later) — what's already prepared
+## 11. Android / iOS app (later) — how the API is prepared for it
 
-- Same endpoints, JSON only, Bearer token auth (`token` returned from login/register).
-- Images upload via `POST /api/uploads` (multipart), then send the URLs in the listing body.
-- Notifications via `GET /api/notifications` (push notifications can be added later with FCM: add `deviceTokens: string[]` to User and send from `notify.ts`).
-- Native apps don't need CORS. If a web-based client on another domain is ever added, add CORS headers then.
+The mobile app (Flutter) is built **after** the website and uses the **same `/api/v1` endpoints**. Nothing new is needed on the server to start it.
+
+| Need in the app | How the API already covers it |
+| --- | --- |
+| Login | `POST /api/v1/auth/login` returns `token` in the body. App stores it in secure storage and sends `Authorization: Bearer <token>`. Token lasts 30 days; on 401 the app shows login again. |
+| Register | `POST /api/v1/auth/register` (same validation rules, `GET /api/v1/meta` gives dropdown values). |
+| Dropdowns & labels | `GET /api/v1/meta` — no hard-coded enums in the app. |
+| Photos | `POST /api/v1/uploads` (multipart, one file per call, ≤ 4 MB). App compresses images before upload, then sends URLs in the listing body. |
+| Lists & infinite scroll | Every list has `page`, `limit`, `total`. |
+| Errors | One shape: `{ error: { message, fields } }`, show `message`, map `fields` to inputs. |
+| Notifications | `GET /api/v1/notifications` polling for v1. Push later: add `POST /api/v1/devices` (FCM token) + send from `notify.ts`. |
+| Blocked user | Any call returns 403 with a message → app logs out. |
+| Forced update | `meta.minAppVersion` → app compares with its version. |
+| Admin on mobile | Not planned; admin uses the website (works on mobile browser). |
+
+Native apps don't need CORS. If a browser client on another domain is ever added, add CORS headers then.
 
 ---
 
@@ -442,4 +471,6 @@ KYC/document uploads, online payments/escrow, in-app chat between parties, invoi
 
 ## 13. Current state of this repo
 
-The repo started as a **frontend-only Turborepo monorepo** (`apps/web`, `apps/admin`, `packages/*`, mock API via MSW, XState). It is being converted into the **single Next.js app** described above — see `DEVELOPMENT.md`, Prompt 1. After that prompt, `apps/`, `packages/`, `turbo.json`, MSW and XState no longer exist.
+**Frontend ≈ 60–70% done, backend 0%.** The repo started as a **frontend-only Turborepo monorepo** (`apps/web`, `apps/admin`, `packages/*`, fake API via MSW, XState). All public pages, the UI kit, the dashboard and admin shells and most list screens exist and run on mock data.
+
+What remains is mostly **"connecting the dots"**: convert to the single app, write the backend and `/api/v1`, replace every mock call with the real API, and add the few screens that don't exist yet (admin enquiry inbox, deal detail with payments and shipments, image upload, listing detail, profile, admins, notifications bell). The exact plan is in `DEVELOPMENT.md`; Prompt 0 checks the code against this list first.
