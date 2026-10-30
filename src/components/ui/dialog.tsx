@@ -13,6 +13,11 @@ export function Dialog({ open, onClose, title, children, footer }: {
   open: boolean; onClose: () => void; title: string; children: ReactNode; footer?: ReactNode;
 }) {
   const panel = useRef<HTMLDivElement>(null);
+  // Callers pass inline functions; a ref keeps a parent re-render from re-running the focus effect.
+  const close = useRef(onClose);
+  useEffect(() => {
+    close.current = onClose;
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -22,7 +27,7 @@ export function Dialog({ open, onClose, title, children, footer }: {
     const first = focusables().find((el) => el.matches("input, select, textarea")) ?? focusables()[0];
     first?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") close.current();
       if (e.key === "Tab") {
         const els = focusables();
         if (!els.length) return;
@@ -36,7 +41,7 @@ export function Dialog({ open, onClose, title, children, footer }: {
       document.removeEventListener("keydown", onKey);
       prev?.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
   return (

@@ -81,7 +81,7 @@ Audited against the code on 2026-10-30 (Prompt 0, commit after `8e83263`). Statu
 - [x] Prompt 3 — Auth API + login/register/profile wired
 - [x] Prompt 4 — Listings + uploads API + listing screens wired (upload success path to re-test once BLOB_READ_WRITE_TOKEN is set)
 - [x] Prompt 5 — Interest, notifications, email + admin enquiry inbox
-- [ ] Prompt 6 — Deals, payments, shipments (API + admin + buyer/seller screens)
+- [x] Prompt 6 — Deals, payments, shipments (API + admin + buyer/seller screens)
 - [ ] Prompt 7 — Admin users, listings, categories, admins, overview
 - [ ] Prompt 8 — Polish, full-flow test, API docs, deploy
 

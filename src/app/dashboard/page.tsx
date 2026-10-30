@@ -13,6 +13,7 @@ export default function DashboardHome() {
   const buyer = !!me?.roles.includes("buyer");
   const active = useApi(() => apiList<PublicListing>("/me/listings", { query: { status: "active", limit: 1 } }));
   const enquiries = useApi(() => apiList("/me/enquiries", { query: { limit: 1 } }));
+  const deals = useApi(() => apiList("/me/deals", { query: { status: "active", limit: 1 } }));
   const recent = useApi(() => apiList<PublicListing>("/me/listings", { query: { limit: 5 } }));
 
   return (
@@ -30,7 +31,7 @@ export default function DashboardHome() {
       <div className="grid gap-4 sm:grid-cols-3">
         <Stat label="My active listings" value={active.data ? String(active.data.total) : "–"} />
         <Stat label="My enquiries" value={enquiries.data ? String(enquiries.data.total) : "–"} hint="Interests you sent" />
-        <Stat label="My active deals" value="–" />
+        <Stat label="My active deals" value={deals.data ? String(deals.data.total) : "–"} />
       </div>
 
       <Card className="mt-6">

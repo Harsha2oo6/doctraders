@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { BUSINESS_TYPES, ENQUIRY_STATUSES, INDIAN_STATES, LISTING_KINDS, TRADE_ROLES, UNITS, UPLOAD_LIMITS } from "./constants";
+import { BUSINESS_TYPES, ENQUIRY_STATUSES, INDIAN_STATES, LISTING_KINDS, PAYMENT_METHODS, TRADE_ROLES, UNITS, UPLOAD_LIMITS } from "./constants";
 
 /** Zod schemas shared by forms (client) and API routes (server). */
 
@@ -202,3 +202,54 @@ export const enquiryStatusSchema = z.object({
 export const noteSchema = z.object({ text: z.string().trim().min(1, "Write a note").max(2000) });
 
 export const notificationsReadSchema = z.object({ ids: z.array(objectId).max(200).optional() });
+
+/* ---------------- deals, payments, shipments ---------------- */
+
+const percentField = z.coerce.number({ invalid_type_error: "Enter a percent" }).min(0, "0 or more").max(100, "100 or less");
+
+/** POST /admin/deals — convert an enquiry into a deal. */
+export const dealCreateSchema = z.object({
+  enquiryId: objectId,
+  quantity: positive("Enter the deal quantity"),
+  unit: z.enum(UNITS, { errorMap: () => ({ message: "Choose a unit" }) }),
+  pricePerUnit: positive("Enter the price per unit"),
+  commissionPercent: percentField,
+  adminNotes: optStr(5000),
+});
+export type DealCreateInput = z.input<typeof dealCreateSchema>;
+export type DealCreateValues = z.output<typeof dealCreateSchema>;
+
+/** PATCH /admin/deals/:id — totals are recalculated from quantity × price and the percent. */
+export const dealUpdateSchema = z
+  .object({
+    status: z.enum(["completed", "cancelled"]).optional(),
+    commissionStatus: z.enum(["paid"]).optional(),
+    quantity: positive("Enter the deal quantity").optional(),
+    pricePerUnit: positive("Enter the price per unit").optional(),
+    commissionPercent: percentField.optional(),
+    adminNotes: z.union([z.null(), z.string().trim().max(5000)]).optional(),
+  })
+  .strict();
+export type DealUpdateInput = z.input<typeof dealUpdateSchema>;
+
+export const paymentSchema = z.object({
+  amount: positive("Enter the amount"),
+  method: z.preprocess(blank, z.enum(PAYMENT_METHODS).optional()),
+  note: optStr(500),
+  paidAt: z.preprocess(blank, z.coerce.date({ invalid_type_error: "Enter a valid date" }).refine((d) => d.getTime() <= Date.now() + 86_400_000, "Cannot be in the future").optional()),
+});
+export type PaymentInput = z.input<typeof paymentSchema>;
+export type PaymentValues = z.output<typeof paymentSchema>;
+
+export const shipmentCreateSchema = z.object({
+  quantity: positive("Enter the quantity in this lot"),
+  status: z.literal("packed").optional(),
+  note: optStr(500),
+});
+export type ShipmentCreateInput = z.input<typeof shipmentCreateSchema>;
+export type ShipmentCreateValues = z.output<typeof shipmentCreateSchema>;
+
+export const shipmentUpdateSchema = z.object({
+  status: z.enum(["shipped", "reached"], { errorMap: () => ({ message: "Status must be shipped or reached" }) }),
+  note: optStr(500),
+});

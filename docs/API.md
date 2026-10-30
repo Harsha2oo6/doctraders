@@ -8,6 +8,8 @@ The website and the Android/iOS app use **the same endpoints**. This file is the
 - [Categories, listings & uploads](#categories-listings--uploads)
 - [Interest (enquiries) & notifications](#interest-enquiries--notifications), contact
 - [Admin: enquiries & stats](#admin-enquiries--stats)
+- [Deals, payments & shipments](#deals-payments--shipments)
+- [Admin: deals](#admin-deals)
 <!-- sections are appended below by each feature -->
 
 ---
@@ -614,3 +616,173 @@ Body `{ "status": "contacted" | "spoken" | "negotiating" | "dropped" | "new" }`.
 ### POST /admin/enquiries/:id/notes
 
 Body `{ "text": "Spoke to seller, price ₹2,400 final." }` → 201 with the full admin enquiry (new note first in `notes`).
+
+---
+
+## Deals, payments & shipments
+
+### For buyers and sellers
+
+The **party deal** object. There are **no commission fields, no admin notes and no contact details**. The other side is only an alias. Progress numbers are computed by the server.
+
+```json
+{
+  "id": "6ae455f75ba3b0c5887e8f88",
+  "code": "DT-2026-0001",
+  "title": "Basmati rice 1121, 25 kg bags",
+  "listingId": "6ae43aa04eb077eaccb2586b",
+  "myRole": "buyer",
+  "counterparty": { "alias": "Seller #68435" },
+  "quantity": 500,
+  "unit": "bag",
+  "pricePerUnit": 2400,
+  "totalValue": 1200000,
+  "status": "active",
+  "paidAmount": 600000,
+  "paidPercent": 50,
+  "balanceAmount": 600000,
+  "allocatedQuantity": 250,
+  "remainingQuantity": 250,
+  "shippedQuantity": 250,
+  "shippedPercent": 50,
+  "reachedQuantity": 250,
+  "reachedPercent": 50,
+  "payments": [ { "id": "6ae456015ba3b0c5887e8f9c", "amount": 600000, "method": "bank", "paidAt": "2026-10-30T08:32:01.806Z" } ],
+  "shipments": [
+    {
+      "id": "6ae456075ba3b0c5887e8faa",
+      "quantity": 250,
+      "status": "reached",
+      "note": "Lot 1, truck HR-45",
+      "history": [
+        { "status": "packed", "at": "2026-10-30T08:32:07.226Z" },
+        { "status": "shipped", "at": "2026-10-30T08:32:11.839Z" },
+        { "status": "reached", "at": "2026-10-30T08:32:13.436Z" }
+      ],
+      "createdAt": "2026-10-30T08:32:07.226Z"
+    }
+  ],
+  "createdAt": "2026-10-30T08:31:51.835Z",
+  "updatedAt": "2026-10-30T08:32:28.393Z"
+}
+```
+
+- `allocatedQuantity` is everything in shipment lots, including lots still `packed`. `remainingQuantity` is what can still go into a new lot.
+- `shippedQuantity` counts lots that are `shipped` or `reached`. `reachedQuantity` counts `reached` only.
+
+### GET /me/deals
+
+Auth: user. Deals where you are the buyer or the seller, newest first. Query: `status` (`active`|`completed`|`cancelled`), `page`, `limit`.
+
+```json
+{ "data": [ { "id": "6ae455f75ba3b0c5887e8f88", "code": "DT-2026-0001", "myRole": "buyer", "…": "party deal object" } ], "page": 1, "limit": 20, "total": 1 }
+```
+
+### GET /me/deals/:id
+
+Auth: party (the deal's buyer or seller). Returns the party deal object. 404 `{ "error": { "message": "Deal not found." } }` for anyone else.
+
+### POST /deals/:id/shipments
+
+Auth: the deal's seller, or an admin. Adds a shipment lot, which always starts as `packed`. The deal must be `active`, and lots cannot add up to more than the deal quantity. Notifies admins (bell + email) and the buyer.
+
+```bash
+curl -X POST http://localhost:3000/api/v1/deals/6ae455f75ba3b0c5887e8f88/shipments -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{ "quantity": 250, "note": "Lot 1, truck HR-45" }'
+```
+
+201 → the updated deal: the party deal object for a seller, the admin deal object for an admin.
+
+| Status | Example message |
+| --- | --- |
+| 400 | `{ "error": { "message": "Only 250 bag is left to ship on this deal.", "fields": { "quantity": "Max 250" } } }` |
+| 403 | `"Only the seller can post shipment updates."` (the deal's buyer) |
+| 404 | `"Deal not found."` (anyone not on the deal) |
+| 409 | `"Shipments can only be updated on an active deal."` |
+
+### PATCH /deals/:id/shipments/:shipmentId
+
+Auth: the deal's seller, or an admin. Body `{ "status": "shipped" | "reached", "note": "optional" }`. Status moves forward only (`packed` → `shipped` → `reached`), and a lot may skip straight from `packed` to `reached`. Notifies admins (bell + email) and the buyer. Returns the updated deal, as for POST.
+
+409 `{ "error": { "message": "This lot is already shipped. Shipments only move forward (packed → shipped → reached)." } }`.
+
+---
+
+## Admin: deals
+
+The **admin deal** object is everything in the party deal except `myRole` and `counterparty`, plus:
+
+```json
+{
+  "enquiryId": "6ae44d81546769ba4191968d",
+  "buyerId": "6ae43629208a8118a01261a4",
+  "sellerId": "6ae43628208a8118a0126195",
+  "buyer": { "id": "6ae43629208a8118a01261a4", "name": "Meena Shah", "mobile": "9822222222", "…": "contact card" },
+  "seller": { "id": "6ae43628208a8118a0126195", "name": "Ravi Kumar", "mobile": "9811111111", "…": "contact card" },
+  "commissionPercent": 2,
+  "commissionAmount": 24000,
+  "commissionStatus": "pending",
+  "adminNotes": null,
+  "payments": [ { "id": "6ae456015ba3b0c5887e8f9c", "amount": 600000, "method": "bank", "note": "Advance", "paidAt": "2026-10-30T08:32:01.806Z", "byId": "6ae433ed37d8497829a2a155" } ],
+  "shipments": [ { "id": "6ae456075ba3b0c5887e8faa", "quantity": 250, "status": "packed", "note": null, "history": [ { "status": "packed", "at": "2026-10-30T08:32:07.226Z", "byId": "6ae43628208a8118a0126195" } ], "createdAt": "2026-10-30T08:32:07.226Z" } ],
+  "createdBy": "6ae433ed37d8497829a2a155"
+}
+```
+
+### POST /admin/deals
+
+Auth: admin. Converts an enquiry into a deal. The server computes `totalValue` and `commissionAmount`. The deal starts `active` with commission `pending`, the enquiry becomes `deal_closed`, and the buyer and seller are notified.
+
+| Field | Rule |
+| --- | --- |
+| `enquiryId` | an enquiry with no deal yet |
+| `quantity`, `pricePerUnit` | > 0 |
+| `unit` | one of `meta.units` |
+| `commissionPercent` | 0–100 |
+| `adminNotes` | optional |
+
+```bash
+curl -X POST http://localhost:3000/api/v1/admin/deals -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{ "enquiryId": "6ae44d81546769ba4191968d", "quantity": 500, "unit": "bag", "pricePerUnit": 2400, "commissionPercent": 2 }'
+```
+
+201 → admin deal object. 404 `"Enquiry not found."`. 409 `{ "error": { "message": "A deal already exists for this enquiry." } }`.
+
+### GET /admin/deals
+
+Auth: admin. Query: `status`, `commissionStatus` (`pending`|`due`|`paid`), `q` (code, title, buyer/seller name, business, mobile), `page`, `limit`. Extra `counts` per status for the tabs; they respect `q` and `commissionStatus` but not `status`.
+
+```json
+{ "data": [ { "id": "6ae455f75ba3b0c5887e8f88", "code": "DT-2026-0001", "…": "admin deal object" } ], "page": 1, "limit": 20, "total": 1, "counts": { "all": 2, "active": 1, "completed": 1, "cancelled": 0 } }
+```
+
+### GET /admin/deals/:id
+
+Auth: admin. Admin deal object. 404 `"Deal not found."`.
+
+### PATCH /admin/deals/:id
+
+Auth: admin. Every field is optional:
+
+| Field | Rule |
+| --- | --- |
+| `quantity`, `pricePerUnit`, `commissionPercent` | recalculates the totals. Not on a cancelled deal; quantity cannot go below what is in lots, value cannot go below what is paid (400) |
+| `status` | `completed` or `cancelled`, only from `active` (409). `completed` makes commission `due` and notifies both parties |
+| `commissionStatus` | `paid`, only when the deal is `completed` (409) |
+| `adminNotes` | string, or `null` to clear |
+
+```bash
+curl -X PATCH http://localhost:3000/api/v1/admin/deals/6ae455f75ba3b0c5887e8f88 -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{ "status": "completed" }'
+```
+
+200 → admin deal object. 409 example: `{ "error": { "message": "Commission can be marked paid only after the deal is completed." } }`.
+
+### POST /admin/deals/:id/payments
+
+Auth: admin. Body `{ "amount": 600000, "method": "bank", "note": "Advance", "paidAt": "2026-10-30" }`. `amount` is required and must be > 0; `method` is one of `meta.paymentMethods`. `paidAt` cannot be in the future and defaults to now. Total payments cannot exceed the deal value. Notifies the seller. Payments can be recorded on a completed deal, but not on a cancelled one (409).
+
+201 → admin deal object. 400 example: `{ "error": { "message": "This is more than the balance of ₹6,00,000.", "fields": { "amount": "Max ₹6,00,000" } } }`.
+
+### DELETE /admin/deals/:id/payments/:paymentId
+
+Auth: admin. Undoes a wrong entry. 200 → admin deal object. 404 `"Payment not found."`.
