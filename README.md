@@ -118,7 +118,8 @@ doctraders/
 ├─ next.config.ts
 ├─ package.json
 ├─ scripts/
-│  └─ seed.ts                creates first super admin + default categories
+│  ├─ seed.ts                creates first super admin + default categories
+│  └─ smoke.ts               full-flow API test (Bearer tokens only)
 └─ src/
    ├─ middleware.ts          page guards (/dashboard, /admin)
    ├─ app/
@@ -288,7 +289,7 @@ Auth column: **public**, **user** (any logged-in buyer/seller), **buyer**, **sel
 | POST | `/api/v1/auth/login` | public | `{ identifier (email or mobile), password }` → `{ user, token }` + cookie. Blocked → 403. |
 | POST | `/api/v1/auth/logout` | public | clears cookie |
 | GET | `/api/v1/auth/me` | any | current user (own full profile) |
-| PATCH | `/api/v1/auth/me` | user | update profile / business; can **add** a role (adding `seller` requires seller fields) |
+| PATCH | `/api/v1/auth/me` | any | update profile / business; can **add** a role (adding `seller` requires seller fields). Admins may change only name, email and mobile |
 | POST | `/api/v1/auth/change-password` | any | `{ currentPassword, newPassword }` |
 | POST | `/api/v1/auth/forgot-password` | public | `{ email }` → always 200; emails reset link (token valid 1 h) |
 | POST | `/api/v1/auth/reset-password` | public | `{ token, password }` |
@@ -356,7 +357,7 @@ Auth column: **public**, **user** (any logged-in buyer/seller), **buyer**, **sel
 | Registration | — | welcome email to user |
 | Forgot password | — | reset link |
 
-The bell (`components/notifications-bell.tsx`) polls `GET /api/v1/notifications?unread=1` every 30 s and shows the count. Clicking an item marks it read and navigates to `link`.
+The bell (`components/notifications-bell.tsx`) polls `GET /api/v1/notifications?limit=10` every 30 s and shows `unreadCount`. Clicking an item marks it read and navigates to `link`.
 
 Emails come from `EMAIL_FROM` (e.g. `Doctraders <no-reply@yourdomain.com>`). The domain must be verified in Resend (add the DNS records Resend gives you).
 
@@ -424,7 +425,9 @@ npm run dev                     # http://localhost:3000
 
 If a required variable is missing, the app fails fast with a clear message naming it (see `src/server/env.ts`). Optional ones (`RESEND_API_KEY`, `BLOB_READ_WRITE_TOKEN`, `ADMIN_NOTIFY_EMAILS`) only log a warning and fall back as described in section 8.
 
-Scripts: `dev`, `build`, `start`, `lint`, `typecheck`, `seed`.
+Scripts: `dev`, `build`, `start`, `lint`, `typecheck`, `seed`, `smoke`.
+
+`npm run smoke` runs the full flow against `localhost:3000` using Bearer tokens only and prints PASS/FAIL per step. It creates real records, so it refuses to run unless `MONGODB_URI` points at a database whose name contains `dev` or `test`. It logs in with the `SEED_SUPERADMIN_*` values, so it fails at the admin step if you have changed that password.
 
 - Website: `/` · Login: `/login` (admins and users use the same page; admins land on `/admin`, users on `/dashboard`).
 
@@ -432,13 +435,71 @@ Scripts: `dev`, `build`, `start`, `lint`, `typecheck`, `seed`.
 
 ## 10. Deployment (Vercel)
 
-1. MongoDB Atlas: production database (`/doctraders`), its own database user, *Network Access* `0.0.0.0/0` (Vercel IPs are dynamic).
-2. Push repo to GitHub → import in Vercel → framework Next.js (defaults).
-3. Vercel → Storage → create a **Blob** store and connect it to the project (adds `BLOB_READ_WRITE_TOKEN`).
-4. Add every env var from section 8 for **Production**: production `MONGODB_URI`, a **new** `JWT_SECRET`, `APP_URL=https://yourdomain.com`, Resend keys. The `SEED_*` values are not needed on Vercel.
-5. Vercel → Domains → add `yourdomain.com` and `www.yourdomain.com`, set the DNS records at your registrar.
-6. Resend → Domains → add your domain, add its DNS records, wait for "Verified".
-7. Run `npm run seed` once locally against the production `MONGODB_URI`.
+Do these in order. Every step is done by hand in a dashboard or terminal, because they need your accounts. Replace `yourdomain.com` throughout.
+
+### Before you start
+
+- [ ] **Change the database password.** The dev password was saved in `.env.example` for a while, so treat it as exposed: Atlas → Database Access → edit the user → new password, then update `MONGODB_URI` in `.env.local`.
+- [ ] Have a lawyer review `/terms`, `/privacy`, `/commission-policy` and `/disclaimer`. They are drafts, and each shows a "Pending legal review" notice. Remove the notice from `src/components/site/legal-page.tsx` once they are approved.
+- [ ] Run locally: `npm run typecheck`, `npm run lint`, `npm run build`, `npm run smoke`.
+
+### 1. Production database (MongoDB Atlas)
+
+- [ ] Use a separate database named `doctraders`. Never point production at `doctraders_dev`.
+- [ ] Database Access → Add New Database User, with its own strong password. Do not reuse the dev user.
+- [ ] Network Access → Add IP Address → `0.0.0.0/0` (Vercel's IPs change).
+- [ ] Connect → Drivers → copy the string and add the database name before `?`: `mongodb+srv://USER:PASS@cluster0.xxxx.mongodb.net/doctraders?retryWrites=true&w=majority`.
+
+### 2. Vercel project
+
+- [ ] Push the repo to GitHub, then Vercel → Add New → Project → import it. Framework: Next.js, defaults unchanged.
+- [ ] Storage → Create → **Blob** → connect it to the project. This adds `BLOB_READ_WRITE_TOKEN`.
+
+### 3. Email (Resend)
+
+- [ ] Resend → Domains → add `yourdomain.com`, add the DNS records it shows at your registrar, and wait for "Verified".
+- [ ] Resend → API Keys → Create, with Sending permission.
+
+### 4. Production environment variables
+
+Vercel → Project → Settings → Environment Variables → Production:
+
+| Key | Value |
+| --- | --- |
+| `MONGODB_URI` | the production string from step 1 |
+| `JWT_SECRET` | a **new** value from `openssl rand -base64 32`. Not the local one |
+| `APP_URL` | `https://yourdomain.com` (no trailing slash) |
+| `RESEND_API_KEY` | from step 3 |
+| `EMAIL_FROM` | `Doctraders <no-reply@yourdomain.com>` |
+| `ADMIN_NOTIFY_EMAILS` | optional, comma-separated |
+| `BLOB_READ_WRITE_TOKEN` | already added by step 2; check it is there |
+
+The `SEED_*` values are not needed on Vercel.
+
+### 5. Domain
+
+- [ ] Vercel → Project → Settings → Domains → add `yourdomain.com` and `www.yourdomain.com`, and redirect `www` to the main domain.
+- [ ] Add the DNS records Vercel shows at your registrar and wait for the SSL certificate.
+- [ ] Deployments → Redeploy, so the app picks up all the variables.
+
+### 6. Create the first super admin (once)
+
+- [ ] On your own computer, create a file named `.env.seed-prod.local` (git ignores it) with the production `MONGODB_URI`, `JWT_SECRET`, `APP_URL`, and `SEED_SUPERADMIN_NAME`, `SEED_SUPERADMIN_EMAIL`, `SEED_SUPERADMIN_MOBILE`, `SEED_SUPERADMIN_PASSWORD`. Use a strong password.
+- [ ] Run `npx tsx --conditions=react-server --env-file=.env.seed-prod.local scripts/seed.ts`. It should print "Super admin: created." and "Categories: 11 added".
+- [ ] Delete `.env.seed-prod.local`.
+
+### 7. Checks after deploying
+
+Do not run `npm run smoke` here: it only runs against localhost and a dev or test database.
+
+- [ ] `https://yourdomain.com/api/v1/health` shows `{"data":{"ok":true,"db":true}}`.
+- [ ] `https://yourdomain.com/api/v1/meta` lists 11 categories.
+- [ ] Log in at `/login` as the super admin. You land on `/admin`. Change the password at `/admin/account`.
+- [ ] Register a test seller and post an offer **with a photo**. This is the first real test of image upload, because it was never tried with a real token during the build. Check the photo shows on `/listings`.
+- [ ] Register a test buyer and click "I'm interested". The admin gets the bell and the email (this is also the first real test of sending email), and the buyer gets the welcome email.
+- [ ] Try "Forgot password" and check the link in the email starts with `https://yourdomain.com`.
+- [ ] `/robots.txt` and `/sitemap.xml` show your domain.
+- [ ] Block the test accounts and listings from the admin panel when you finish.
 
 ---
 
@@ -471,6 +532,13 @@ KYC/document uploads, online payments/escrow, in-app chat between parties, invoi
 
 ## 13. Current state of this repo
 
-**Frontend ≈ 60–70% done, backend 0%.** The repo started as a **frontend-only Turborepo monorepo** (`apps/web`, `apps/admin`, `packages/*`, fake API via MSW, XState). All public pages, the UI kit, the dashboard and admin shells and most list screens exist and run on mock data.
+**The website and `/api/v1` are built** (Prompts 0 to 8 in `DEVELOPMENT.md`) and ready to deploy using section 10. The monorepo, MSW mocks and XState are gone. The API contract for the mobile app is in `docs/API.md`.
 
-What remains is mostly **"connecting the dots"**: convert to the single app, write the backend and `/api/v1`, replace every mock call with the real API, and add the few screens that don't exist yet (admin enquiry inbox, deal detail with payments and shipments, image upload, listing detail, profile, admins, notifications bell). The exact plan is in `DEVELOPMENT.md`; Prompt 0 checks the code against this list first.
+Not yet tried with real keys: image upload to Vercel Blob and sending email through Resend. Section 10, step 7 covers both.
+
+Known limitations:
+
+- Rate limits are in memory, per server instance. On Vercel each instance counts separately, so they slow abuse rather than stop it exactly.
+- A JWT stays valid until it expires (30 days), even after a password change. Blocking an account does take effect immediately.
+- Listing titles, descriptions and messages are free text. Nothing stops a member typing a phone number into a listing, so admins have to block those by hand.
+- Commission is agreed offline. Buyers and sellers never see the percentage or the amount in the product, as section 3 requires.

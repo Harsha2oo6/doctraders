@@ -42,6 +42,8 @@ export default function DashboardHome() {
         <CardBody className="divide-y divide-ink-100 p-0">
           {recent.loading ? (
             <Spinner />
+          ) : recent.error ? (
+            <p className="p-5 text-sm text-danger">{recent.error.message}</p>
           ) : !recent.data?.data.length ? (
             <p className="p-5 text-sm text-ink-500">You have not posted anything yet.</p>
           ) : (

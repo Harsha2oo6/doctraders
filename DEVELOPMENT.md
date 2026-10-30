@@ -10,7 +10,7 @@ Files the agent must follow: `README.md` (architecture, models, API list), `DESI
 
 ## 1. What's done vs what's left
 
-Audited against the code on 2026-10-30 (Prompt 0, commit after `8e83263`). Status: **Done** = exists and only needs wiring/copy; **Partial** = exists but built on the old model; **Missing** = nothing yet.
+**Historical snapshot:** this table shows the code before the build started. Everything in it has since been done; see the Progress checklist below. Audited against the code on 2026-10-30 (Prompt 0, commit after `8e83263`). Status: **Done** = exists and only needs wiring/copy; **Partial** = exists but built on the old model; **Missing** = nothing yet.
 
 | Area | Status | Already in the code (verified) | Left to do |
 | --- | --- | --- | --- |
@@ -83,7 +83,7 @@ Audited against the code on 2026-10-30 (Prompt 0, commit after `8e83263`). Statu
 - [x] Prompt 5 — Interest, notifications, email + admin enquiry inbox
 - [x] Prompt 6 — Deals, payments, shipments (API + admin + buyer/seller screens)
 - [x] Prompt 7 — Admin users, listings, categories, admins, overview
-- [ ] Prompt 8 — Polish, full-flow test, API docs, deploy
+- [x] Prompt 8 — Polish, full-flow test, API docs, deploy
 
 ---
 

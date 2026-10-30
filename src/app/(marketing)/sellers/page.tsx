@@ -1,22 +1,22 @@
 import type { Metadata } from "next";
 import { AudiencePage } from "@/components/site/audience-page";
 
-export const metadata: Metadata = { title: "For Sellers" };
+export const metadata: Metadata = { title: "For Sellers", description: "List your products free and reach buyers across India. Doctraders handles the deal." };
 
 export default function SellersPage() {
   return (
     <AudiencePage
       eyebrow="For sellers"
-      title="Reach verified buyers in new markets"
-      intro="List your offers and get qualified enquiries from verified direct buyers."
+      title="List your products. We bring you buyers."
+      intro="Post what you have with photos. When a buyer is interested, Doctraders handles the conversation and the deal."
       benefits={[
-        "Post offers with price (or on request), port, delivery and payment terms",
-        "Smart matching puts your offer in front of matching buyers",
-        "Verified badge builds trust with international buyers",
-        "Inbox for enquiries and a clear deal pipeline",
+        "Post offers with photos, quantity, price (or on request) and minimum order",
+        "Browse buyer requirements and show interest in the ones you can supply",
+        "See payments as they are recorded on your deals",
+        "Post shipment updates per lot: packed, shipped, reached",
         "No listing fee. Commission only after a completed deal",
       ]}
-      who={["Manufacturers and mills", "Farmers' companies", "Exporters"]}
+      who={["Farmers", "Manufacturers and mills", "Traders and wholesalers", "Processors and exporters"]}
     />
   );
 }

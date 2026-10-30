@@ -2,6 +2,7 @@
 
 The website and the Android/iOS app use **the same endpoints**. This file is the contract: every endpoint has its method, path, auth, body and a real response example. It is updated in the same commit as the code.
 
+- [For the mobile app](#for-the-mobile-app)
 - [Conventions](#conventions)
 - [System](#system): health, meta
 - [Auth & profile](#auth--profile): register, login, logout, me, change/forgot/reset password
@@ -12,7 +13,38 @@ The website and the Android/iOS app use **the same endpoints**. This file is the
 - [Admin: deals](#admin-deals)
 - [Admin: users, listings, categories](#admin-users-listings-categories)
 - [Admin: admins (super admin only)](#admin-admins-super-admin-only)
-<!-- sections are appended below by each feature -->
+---
+
+## For the mobile app
+
+Everything the website does goes through these endpoints, so the app needs nothing extra from the server. `scripts/smoke.ts` runs the whole flow with Bearer tokens and no cookies.
+
+**Token storage.** `POST /auth/login` and `POST /auth/register` return `token` in the body. Keep it in secure storage (Keychain or Keystore) and send `Authorization: Bearer <token>` on every call. It lasts 30 days and cannot be refreshed, so log in again when it expires. Logging out just means deleting it.
+
+**Handling 401 and 403.**
+
+| Response | What it means | What the app should do |
+| --- | --- | --- |
+| 401 on any call | Token missing, invalid or expired | Delete the token and show the login screen |
+| 403 with "Your account is blocked" | The admin blocked this account | Show the message, delete the token, show login |
+| 403 with any other message | This action needs a role you don't have | Show the message and stay logged in |
+
+**Forms.** Show `error.message`, and map each key in `error.fields` to its input. Nested keys use dots, e.g. `business.pincode`.
+
+**Dropdowns and labels.** Load `GET /meta` when the app starts. It has every enum with its label, the states, active categories and upload limits. The API returns keys such as `in_discussion`; show the label instead. Compare `minAppVersion` with the app's version to force an update.
+
+**Uploading photos.** One file per call:
+
+1. Compress on the device. The website resizes to at most 1600 px and saves as JPEG; the limit is 4 MB.
+2. `POST /uploads` as `multipart/form-data` with the field `file`, and keep the returned `url`.
+3. Send the URLs in `images` on `POST /listings` or `PATCH /listings/:id`. The first is the cover. Offers need at least one; the maximum is 6.
+4. Handle 503, which means image storage is not configured, by showing the message and letting the user retry.
+
+**Pagination.** Lists take `page` and `limit` (max 50) and return `page`, `limit`, `total`. For infinite scroll, load more while `page * limit < total`.
+
+**Notifications.** Poll `GET /notifications` every 30 s while the app is open and show `unreadCount` on the bell. `link` is a website path; map `/dashboard/deals/<id>` and `/dashboard/enquiries` to the matching screens. Push notifications are planned for later.
+
+**Rate limits.** Login, register, forgot-password, contact and `POST /enquiries` return 429 when one IP sends too many requests in 10 minutes. Show the message and let the user retry later.
 
 ---
 

@@ -3,23 +3,22 @@ import { Container, Section } from "@/components/ui";
 import { CtaBand } from "@/components/site/cta-band";
 import { PageIntro } from "@/components/site/page-intro";
 
-export const metadata: Metadata = { title: "How It Works" };
+export const metadata: Metadata = { title: "How It Works", description: "Post what you sell or need, show interest, and Doctraders handles the deal, payment tracking and shipping updates." };
 
 const STEPS = [
-  ["Register free", "Create an account as a seller, buyer or logistics provider. Brokers and agents cannot register."],
-  ["Upload documents", "Submit business registration, tax ID, bank proof and any licences for your company type."],
-  ["Admin verification", "Our team reviews your documents. Your status moves from Pending to Approved, or Rejected with a reason. You get an email at every step."],
-  ["Post or search", "Approved members post requirements or offers and search by product, country, port, quantity and category. Smart matching suggests the right partners."],
-  ["Show interest", "Press the interest button. Doctraders handles the connection. Contact details stay hidden until a deal is initiated."],
-  ["Accept the commission agreement", "Both parties accept a digital commission agreement before contact details are shared."],
-  ["Track the deal", "Follow it through Enquiry, Negotiation, Agreement, Shipped and Completed, and upload documents along the way."],
-  ["Pay commission on completion", "After the deal completes we issue a commission invoice. No deal, no charge."],
+  ["Register free", "Choose whether you want to sell, buy or both. Your account is active straight away."],
+  ["Post what you have or need", "Sellers post offers with photos. Buyers post requirements. Listings go live at once and show only an alias, never your name."],
+  ["Click “I'm interested”", "Found a match? Tell us the quantity you want. Your interest goes straight to the Doctraders team."],
+  ["We talk to both sides", "Our team calls you and the other side, and works out price and terms. You can follow the status under My enquiries."],
+  ["The deal is created", "Once both sides agree, we record the deal with its quantity and price. It appears under My deals."],
+  ["Track payment and shipping", "We record each payment. The seller posts an update for each lot: packed, shipped, reached. You get a notification at every step."],
+  ["Commission after completion", "When the deal is complete, commission becomes due to Doctraders. No deal, no charge."],
 ];
 
 export default function HowItWorksPage() {
   return (
     <>
-      <PageIntro eyebrow="How it works" title="A simple, verified path from sign-up to closed deal" />
+      <PageIntro eyebrow="How it works" title="From your first post to a completed deal" />
       <Section tone="white">
         <Container>
           <ol className="mx-auto max-w-3xl space-y-6">

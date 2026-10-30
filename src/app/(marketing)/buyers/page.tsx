@@ -1,22 +1,22 @@
 import type { Metadata } from "next";
 import { AudiencePage } from "@/components/site/audience-page";
 
-export const metadata: Metadata = { title: "For Buyers" };
+export const metadata: Metadata = { title: "For Buyers", description: "Post what you need, or find an offer. Doctraders talks to the seller and handles the deal for you." };
 
 export default function BuyersPage() {
   return (
     <AudiencePage
       eyebrow="For buyers"
-      title="Source from verified direct sellers"
-      intro="Post what you need and let verified manufacturers, mills and exporters come to you."
+      title="Tell us what you need. We find the seller."
+      intro="Post a requirement or browse offers. Doctraders talks to the seller and handles the deal for you."
       benefits={[
-        "Post a requirement with specification, quantity, port and terms",
-        "Smart matching shows your requirement to the right sellers",
-        "Search verified offers by product, country, port and quantity",
-        "Deal tracking and documents in one place",
-        "No joining fee. Commission only after a completed deal",
+        "Post a requirement with product, quantity, price and location",
+        "Browse offers with photos by category, state and keyword",
+        "Click “I'm interested” and the Doctraders team calls you",
+        "Track payments and every shipment lot of your deal",
+        "Your contact details stay private. No joining fee",
       ]}
-      who={["Importers", "Processors", "Traders buying for their own use"]}
+      who={["Traders and wholesalers", "Mills and processors", "Distributors and retailers", "Any business buying agro products"]}
     />
   );
 }

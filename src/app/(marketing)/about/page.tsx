@@ -3,19 +3,19 @@ import { Container, Section } from "@/components/ui";
 import { CtaBand } from "@/components/site/cta-band";
 import { PageIntro } from "@/components/site/page-intro";
 
-export const metadata: Metadata = { title: "About" };
+export const metadata: Metadata = { title: "About", description: "Doctraders connects agro buyers and sellers across India and handles the deal for both sides." };
 
 export default function AboutPage() {
   return (
     <>
-      <PageIntro eyebrow="About us" title="Trade is built on trust. We verify it.">
-        Doctraders connects verified direct buyers and verified direct sellers across every sector.
+      <PageIntro eyebrow="About us" title="One trusted middleman between buyers and sellers">
+        Doctraders connects buyers and sellers of agro products across India and handles the deal for both sides.
       </PageIntro>
       <Section tone="white">
         <Container className="mx-auto max-w-3xl space-y-5 text-lg text-ink-700">
-          <p>Cross-border B2B trade is full of middlemen, unverified claims and hidden costs. Doctraders removes them. We are the only intermediary on the platform, and we earn only when your deal completes.</p>
-          <p>Every company uploads documents and is approved by our team before it can post, search or see contacts. There are no brokers and no agents, only the companies that actually buy and sell.</p>
-          <p>We verify documents but do not guarantee any deal, and we never hold or handle payments between parties.</p>
+          <p>Sellers post what they have. Buyers post what they need. When someone is interested, our team talks to both sides by phone or WhatsApp, agrees the price and terms, and turns it into a deal.</p>
+          <p>Your name and contact details stay private. The other side only sees an alias such as Seller #48213. We are the only link between you, and we earn commission only after a deal is completed.</p>
+          <p>Registration is open and accounts are active straight away. We do not check documents, so always use your own judgement before you trade. We can block any account or listing that misuses the platform. We do not guarantee any deal.</p>
         </Container>
       </Section>
       <CtaBand />

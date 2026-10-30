@@ -3,7 +3,7 @@ import { Container, Section } from "@/components/ui";
 import { CtaBand } from "./cta-band";
 import { PageIntro } from "./page-intro";
 
-/** One template for the Buyers, Sellers and Logistics pages. */
+/** One template for the Buyers and Sellers pages. */
 export function AudiencePage({ eyebrow, title, intro, benefits, who }: {
   eyebrow: string; title: string; intro: string; benefits: string[]; who: string[];
 }) {
@@ -27,7 +27,7 @@ export function AudiencePage({ eyebrow, title, intro, benefits, who }: {
                 <li key={w} className="flex gap-3 text-ink-700"><Check className="mt-0.5 size-5 shrink-0 text-brand-600" />{w}</li>
               ))}
             </ul>
-            <p className="mt-6 rounded-lg bg-brand-50 p-4 text-sm text-brand-700">Brokers and agents are not allowed. Only direct parties can join.</p>
+            <p className="mt-6 rounded-lg bg-brand-50 p-4 text-sm text-brand-700">Your account is active as soon as you register. Doctraders can block any account or listing that misuses the platform.</p>
           </div>
         </Container>
       </Section>
