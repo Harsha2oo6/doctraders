@@ -10,32 +10,57 @@ Files the agent must follow: `README.md` (architecture, models, API list), `DESI
 
 ## 1. What's done vs what's left
 
-Based on the codebase (`apps/web`, `apps/admin`, `packages/*`). Prompt 0 re-checks this against your latest code.
+Audited against the code on 2026-10-30 (Prompt 0, commit after `8e83263`). Status: **Done** = exists and only needs wiring/copy; **Partial** = exists but built on the old model; **Missing** = nothing yet.
 
-| Area | Already in the code | Left to do |
-| --- | --- | --- |
-| Repo structure | Turborepo monorepo, 2 Next apps, MSW mocks, XState | Merge into **one Next.js app**, admin under `/admin`, delete mocks/XState |
-| UI kit & theme | Done (`packages/ui`, `theme.css`) | Move to `src/components/ui`, unchanged |
-| Public pages (home, about, how it works, FAQ, buyers, sellers, categories, contact, legal) | Done | Fix copy ("verified" → honest wording), real data on home rows |
-| Browse listings `/listings` | Done (mock data) | Real data from API, show photos |
-| Listing detail `/listings/[id]` | **Missing** | New page + "I'm interested" dialog |
-| Register | 4-step wizard with KYC documents + company types | Replace with **one form**: buyer / seller / both + required fields (README §1) |
-| Login | Done (mock) | Real API, email **or** mobile, forgot/reset password pages |
-| Dashboard shell | Done (mock session, pending/rejected screens) | Real session, role-based menu, remove approval screens |
-| Post listing | Form exists (no photos, old trade fields) | Update fields, add **image uploader**, edit page, "my listings" page |
-| My enquiries | List exists (mock) | Real data, party status labels |
-| My deals | List exists (mock, old pipeline) | Real data, progress bars, **deal detail + seller shipment updates** |
-| Profile | **Missing** | New page (edit details, add role, change password) |
-| Admin shell | Done (mock session) | Real session, new menu |
-| Admin overview | Done (mock, approvals-based) | Rewire to new stats |
-| Admin enquiry inbox + detail | **Missing (core feature)** | New list + detail with statuses, notes, call/WhatsApp, convert to deal |
-| Admin deals | Card list with old stage machine | List + **deal detail** with payments, shipments, commission |
-| Admin users / listings / categories | Tables exist (mock, local state) | Wire to API, block/unblock, user detail |
-| Admin registrations, reports | Exist | **Delete** (no approvals; stats go on overview) |
-| Admins management (super admin) | **Missing** | New page |
-| Notifications bell | **Missing** | New component + API |
-| Backend (DB, models, auth, all APIs, email, uploads) | **Nothing** | Everything in README §3–7 |
-| API docs for mobile | **Nothing** | `docs/API.md` |
+| Area | Status | Already in the code (verified) | Left to do |
+| --- | --- | --- | --- |
+| Repo structure | Partial | Turborepo + npm workspaces: `apps/web` (port 3000), `apps/admin` (port 3001), `packages/{ui,schemas,api-client,machines,mock,config}`, `turbo.json`. MSW (`public/mockServiceWorker.js` in both apps, `packages/mock` provider + handlers), XState (`packages/machines`: auth, session, registration, approval, deal). `node_modules` not installed. | Merge into **one Next.js app**, admin under `/admin`, delete mocks/XState |
+| UI kit & theme | Done | `packages/ui`: Button (cva + Radix Slot), Input/Select/Textarea/Field/Checkbox, Card/CardHeader/CardTitle/CardBody/Stat, Badge/StatusBadge/VerifiedBadge, Logo, Container/Section/SectionHeading/PageHeader/EmptyState/Spinner, DataTable (client-side paging, page size 8), Stepper, FileUpload. `theme.css` matches DESIGN.md Appendix A (only the header comment differs). | Move to `src/components/ui`, unchanged. Delete Stepper + FileUpload. StatusBadge map must be replaced with the DESIGN.md 4.4 domain map; `EmptyState` needs an `action` prop; Field needs required/optional markers. Missing kit pieces: Dialog, Toast, Tabs/pills, ProgressBar, Timeline (DESIGN.md §6) |
+| Public pages (home, about, how it works, FAQ, buyers, sellers, categories, contact, legal ×4, logistics) | Done (copy wrong) | All exist under `apps/web/src/app/(marketing)`, plus `PageIntro`, `CtaBand`, `AudiencePage`, `LegalPage`, `ContactForm` (mock submit). Categories are the old 6 (`agro, food, metals, industrial, textiles, logistics`) hard-coded in `packages/schemas/constants.ts`. | Fix copy ("verified", "documents checked", ports/FOB, logistics, brokers wording), real data on home rows, categories from DB, header shows session |
+| Browse listings `/listings` | Done (mock data) | Server component filtering `@doctraders/mock` data; GET-form filters (keyword, category, type) | Real data via service, `kind` param (code uses `type`), state filter, pagination, show photos |
+| Listing detail `/listings/[id]` | Missing | — (ListingCard links to `/register`) | New page + "I'm interested" dialog |
+| Register | Partial (wrong model) | 4-step XState wizard (`components/register/*`): account → company (seller/buyer/**logistics**, country, "direct party") → **KYC documents** → review + consent; success says "Pending" | Replace with **one form**: buyer / seller / both + required fields (README §1). Consent checkboxes can be reused |
+| Login | Partial (mock) | `LoginForm` with react-hook-form, email only, mock session, demo-login hint box | Real API, email **or** mobile, `?next=`, forgot/reset password pages (missing) |
+| Dashboard shell | Partial (mock) | `components/dashboard/shell.tsx`: dark sidebar per DESIGN 5.11, **demo auto-login**, pending/rejected screens, VerifiedBadge, company name | Real session, role-based menu, remove approval screens, bell, role badges |
+| Post listing | Partial (old fields) | `/dashboard/post`: kind, category, product, specification, qty, unit (MT/KG/…), price text, priceOnRequest, **location/port, validUntil, delivery terms (FOB/CIF), payment terms** — no photos | Update fields, add **image uploader**, edit page, "my listings" page (missing) |
+| Logged-in marketplace | Partial | `/dashboard/marketplace` (mock list + "I am interested" button with no quantity) | Delete; public `/listings` replaces it |
+| My enquiries | Partial (mock) | `/dashboard/enquiries` list rows (6.13 pattern), old statuses `new/in-progress/closed` | Real data, party status labels |
+| My deals | Partial (mock, old pipeline) | `/dashboard/deals` with the old 5-stage pipeline pills **and shows commission % to the party** (privacy bug) | Real data, progress bars, **deal detail + seller shipment updates** |
+| Dashboard overview | Partial (mock) | Stat row + recent enquiries | Real counts + role-based quick actions |
+| Profile | Missing | — | New page (edit details, add role, change password) |
+| Admin app shell | Partial (mock) | `apps/admin/src/app/(panel)/layout.tsx`: dark sidebar, **demo auto-login**, nav with Registrations + Reports; routes at `/` (separate app) | Real session, new menu, move under `/admin` |
+| Admin login | Partial | Separate dark admin login page `apps/admin/src/app/login` | **Delete** (everyone uses `/login`) |
+| Admin overview | Partial (mock, approvals-based) | "Pending approvals", "Awaiting review" card, reports totals | Rewire to new stats |
+| Admin enquiry inbox + detail | Missing (core feature) | — | New list + detail with statuses, notes, call/WhatsApp, convert to deal |
+| Admin deals | Partial (old model) | Card list (`components/deal-card.tsx`) driven by the XState deal machine (enquiry → negotiation → agreement → shipped → completed, "agreement accepted") | List + **deal detail** with payments, shipments, commission |
+| Admin users | Partial (mock) | DataTable: company, contact, email, country, company type, approval status, VerifiedBadge | Wire to API, filters, block/unblock, user detail (missing) |
+| Admin listings | Partial (mock, local state) | DataTable with Block/Unblock + fake **Remove** (local state only) | Wire to API, cover thumbnail, enquiry count, remove fake Remove |
+| Admin categories | Partial (local state) | Add/Remove in local state over the 6 old categories | Wire to API (rename, active toggle, order, delete-if-unused) |
+| Admin registrations, reports | Exist | `/registrations`, `/registrations/[id]` + `review-panel.tsx` (approve/reject via approval machine), `/reports` (Recharts) | **Delete** (no approvals; stats go on overview). Drop `recharts` |
+| Admins management (super admin) | Missing | — | New page |
+| Account page (admin) | Missing | — | New page `/admin/account` |
+| Notifications bell | Missing | — | New component + API |
+| Session / API client | Partial (mock) | `packages/api-client` (`request()` + `useApi`, hits `/api/listings` etc. served by MSW, no `/api/v1`, no error shape); per-app `lib/session.tsx` from the XState session machine | Replace with `src/lib/api-client.ts` (`apiFetch` + `useApi`) and a `MeProvider` |
+| Middleware / page guards | Missing | — (guards are client-side demo redirects) | `src/middleware.ts` |
+| Backend (DB, models, auth, all APIs, email, uploads) | Missing | No `route.ts` files, no Mongoose/jose/bcrypt/Resend/Blob deps | Everything in README §3–7 |
+| Seed script | Missing | — | `scripts/seed.ts` |
+| SEO (sitemap, robots) | Missing | Root metadata only (with "Verified Buyers. Verified Sellers." title) | `sitemap.ts`, `robots.ts`, honest metadata |
+| API docs for mobile | Missing | — | `docs/API.md` |
+| Env | Partial | `.env.local` exists; `.env.example` missing. `.gitignore` lacks `.env` and `.vercel` | `.env.example`, `src/server/env.ts` |
+
+### Code that conflicts with README (later prompts must remove or change it)
+
+- **Approval / KYC model**: `ACCOUNT_STATUSES = pending/approved/rejected`, `packages/schemas/documents.ts`, `register/documents-step.tsx`, `ui/file-upload.tsx`, `ui/stepper.tsx`, `machines/approval.machine.ts`, `machines/registration.machine.ts`, admin `registrations/*`, `review-panel.tsx`, dashboard shell pending/rejected screens, "Registration received … Pending" success screen. README: no approvals, no KYC, active on register, admin can only block.
+- **"Verified" claims**: `VerifiedBadge` used on ListingCard, dashboard shell, admin users; copy "Verified Buyers. Verified Sellers." (root metadata + home hero), "Verified companies / Documents checked by our team", "Get verified" step, RFQ "verified quotes", aliases "Verified Seller #3021". DESIGN.md §8 forbids these.
+- **Company types**: `COMPANY_TYPES = seller/buyer/logistics`, `COUNTRIES`, `isDirectParty`, `companyName/contactName/phone` fields. README uses `roles[]` (buyer/seller/both), `business.type` with 9 types, Indian states, 10-digit mobile.
+- **Logistics**: logistics company type, "Logistics" nav item, `/logistics` page, `logistics` category, "logistics registration" copy. Not in v1.
+- **Old listing fields**: `product`, `specification`, `price` as text, `location` (port), `country`, `deliveryTerms` (FOB/CIF/…), `paymentTerms`, `validUntil`, units `MT/KG/Litre/Piece/Container`, statuses incl. `expired`. README: `title, description, quantity, unit (kg/quintal/tonne/bag/piece/box/litre/other), price?, minOrderQuantity?, city, state, images[]`, status `active/closed/blocked`.
+- **Old enquiry/deal model**: enquiry statuses `new/in-progress/closed`; deal stages `enquiry/negotiation/agreement/shipped/completed`, `agreementAccepted`, `commissionStatus: not-applicable/due/paid`, `currency`. README: enquiry `new/contacted/spoken/negotiating/deal_closed/dropped`; deal `active/completed/cancelled`; commission `pending/due/paid`; payments + shipment lots.
+- **Privacy leak in UI**: `/dashboard/deals` shows commission % to the party; admin `DealCard` shows real seller/buyer company names (fine for admin, but the same mock `Deal` type feeds the party page).
+- **Mock/demo plumbing**: MSW `MockProvider` in auth/dashboard/admin layouts, demo auto-login in both shells, "Demo pages" header dropdown, "Demo: dashboard" mobile link, demo login hint box, `NEXT_PUBLIC_DEMO_MODE`, `NEXT_PUBLIC_ADMIN_URL`, `NEXT_PUBLIC_API_URL`.
+- **Extra library**: `recharts` (reports page only), `react-hook-form` + `@hookform/resolvers` (used by existing forms; not in README §2 — kept for now because rewriting every form is out of scope; Zod stays the validation source).
+- **StatusBadge**: generic map keyed on old statuses with `capitalize` raw labels; DESIGN.md 4.4 requires per-domain map with labels from `constants.ts`.
+- **Query param**: public pages use `?type=offer|requirement`; README API uses `?kind=`.
 
 ---
 
@@ -50,7 +75,7 @@ Based on the codebase (`apps/web`, `apps/admin`, `packages/*`). Prompt 0 re-chec
 **2-day sprint version:** Day 1 = Prompts 0–4, Day 2 = Prompts 5–8. Only do this if the agent is moving fast; Prompts 5 and 6 are the biggest.
 
 **Progress** (the agent ticks these):
-- [ ] Prompt 0 — Audit current code
+- [x] Prompt 0 — Audit current code
 - [ ] Prompt 1 — One app, mocks removed, UI unchanged
 - [ ] Prompt 2 — Backend foundation + API conventions
 - [ ] Prompt 3 — Auth API + login/register/profile wired
