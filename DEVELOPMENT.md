@@ -78,7 +78,7 @@ Audited against the code on 2026-10-30 (Prompt 0, commit after `8e83263`). Statu
 - [x] Prompt 0 — Audit current code
 - [x] Prompt 1 — One app, mocks removed, UI unchanged
 - [x] Prompt 2 — Backend foundation + API conventions
-- [ ] Prompt 3 — Auth API + login/register/profile wired
+- [x] Prompt 3 — Auth API + login/register/profile wired
 - [ ] Prompt 4 — Listings + uploads API + listing screens wired
 - [ ] Prompt 5 — Interest, notifications, email + admin enquiry inbox
 - [ ] Prompt 6 — Deals, payments, shipments (API + admin + buyer/seller screens)

@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import * as sample from "@/lib/sample-data";
+import { useMe } from "@/lib/me";
 import { Button, Card, CardBody, CardHeader, CardTitle, PageHeader, Spinner, Stat, StatusBadge } from "@/components/ui";
 
 export default function DashboardHome() {
-  const user = { companyName: "Your business" }; // TEMPORARY until Prompt 3
+  const { me } = useMe();
   const enquiries = { data: sample.enquiries, loading: false };
   const deals = { data: sample.deals, loading: false };
   const listings = { data: sample.listings, loading: false };
@@ -16,7 +17,7 @@ export default function DashboardHome() {
 
   return (
     <>
-      <PageHeader title={`Welcome, ${user?.companyName}`} description="Your trading activity at a glance." actions={<Button asChild><Link href="/dashboard/post">Post requirement / offer</Link></Button>} />
+      <PageHeader title={`Welcome, ${me?.name ?? ""}`} description="Your trading activity at a glance." actions={<Button asChild><Link href="/dashboard/post">Post requirement / offer</Link></Button>} />
       <div className="grid gap-4 sm:grid-cols-3">
         <Stat label="New enquiries" value={String(newEnquiries)} />
         <Stat label="Active deals" value={String(activeDeals)} />

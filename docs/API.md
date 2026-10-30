@@ -4,6 +4,7 @@ The website and the Android/iOS app use **the same endpoints**. This file is the
 
 - [Conventions](#conventions)
 - [System](#system): health, meta
+- [Auth & profile](#auth--profile): register, login, logout, me, change/forgot/reset password
 <!-- sections are appended below by each feature -->
 
 ---
@@ -140,3 +141,164 @@ curl http://localhost:3000/api/v1/meta
 ```
 
 (Arrays shortened with "…" in this example; the real response lists every value.)
+
+---
+
+## Auth & profile
+
+The `user` object returned by every auth endpoint (own full profile):
+
+```json
+{
+  "id": "6ae43628208a8118a0126195",
+  "name": "Ravi Kumar",
+  "email": "ravi.seller@example.com",
+  "mobile": "9811111111",
+  "roles": ["seller"],
+  "status": "active",
+  "publicCode": "68435",
+  "business": {
+    "name": "Ravi Rice Mills", "type": "manufacturer", "categories": ["rice-grains"],
+    "address": "Plot 4, GT Road", "city": "Karnal", "state": "Haryana", "pincode": "132001",
+    "gstNumber": "06ABCDE1234F1Z5", "yearsInBusiness": null
+  },
+  "lastLoginAt": "2026-10-30T06:16:08.062Z",
+  "createdAt": "2026-10-30T06:16:08.237Z",
+  "updatedAt": "2026-10-30T06:16:08.237Z"
+}
+```
+
+Admins have `business: null`. `publicCode` is what others see as the alias (`Seller #68435`).
+
+### POST /auth/register
+
+Auth: public. Creates a buyer, seller or both account. **Active immediately** (no approval). Sets the `dt_token` cookie and returns the token for the app. Sends a welcome email.
+
+Body (`business` rules from README §1):
+
+| Field | Seller or both | Buyer only |
+| --- | --- | --- |
+| `roles` | `["seller"]` or `["buyer","seller"]` | `["buyer"]` |
+| `name`, `email`, `password` (min 8) | required | required |
+| `mobile` (10-digit Indian, `+91`/spaces allowed) | required | required |
+| `business.name`, `business.city`, `business.state` (one of `meta.states`) | required | required |
+| `business.type` (one of `meta.businessTypes`) | required | optional |
+| `business.categories` (slugs from `meta.categories`) | 1 or more | optional |
+| `business.address` | required | optional |
+| `business.pincode` (6 digits) | required | optional |
+| `business.gstNumber` (15 chars, uppercased, format-checked) | optional | optional |
+| `business.yearsInBusiness` | optional | optional |
+
+```bash
+curl -X POST http://localhost:3000/api/v1/auth/register -H "Content-Type: application/json" -d '{
+  "roles": ["seller"], "name": "Ravi Kumar", "email": "ravi.seller@example.com", "mobile": "9811111111",
+  "password": "secret123",
+  "business": { "name": "Ravi Rice Mills", "type": "manufacturer", "categories": ["rice-grains"],
+    "address": "Plot 4, GT Road", "city": "Karnal", "state": "Haryana", "pincode": "132001", "gstNumber": "06abcde1234f1z5" }
+}'
+```
+
+201:
+
+```json
+{ "data": { "user": { "id": "6ae43628208a8118a0126195", "roles": ["seller"], "…": "see user object" }, "token": "eyJhbGciOiJIUzI1NiJ9…" } }
+```
+
+400 (validation; keys of nested fields use dots):
+
+```json
+{ "error": { "message": "Enter a valid email", "fields": {
+  "email": "Enter a valid email", "mobile": "Enter a 10-digit Indian mobile number", "password": "At least 8 characters",
+  "business.type": "Choose a business type", "business.categories": "Choose at least one category",
+  "business.address": "Enter your full address", "business.pincode": "Enter a 6-digit pincode" } } }
+```
+
+409:
+
+```json
+{ "error": { "message": "This email is already registered", "fields": { "email": "This email is already registered", "mobile": "This mobile number is already registered" } } }
+```
+
+### POST /auth/login
+
+Auth: public. `identifier` is the email **or** the mobile number. Sets the cookie and returns the token.
+
+```bash
+curl -X POST http://localhost:3000/api/v1/auth/login -H "Content-Type: application/json" \
+  -d '{ "identifier": "9822222222", "password": "secret123" }'
+```
+
+```json
+{ "data": { "user": { "id": "6ae43629208a8118a01261a4", "roles": ["buyer"], "…": "see user object" }, "token": "eyJhbGciOiJIUzI1NiJ9…" } }
+```
+
+Errors: 401 `{ "error": { "message": "Incorrect email/mobile or password." } }`, 403 `{ "error": { "message": "Your account is blocked. Please contact support." } }`.
+
+Use the token on every later call:
+
+```bash
+curl http://localhost:3000/api/v1/auth/me -H "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9…"
+```
+
+Admins log in with the same endpoint; `roles` contains `admin` (and `superadmin`).
+
+### POST /auth/logout
+
+Auth: public. Clears the web cookie. The app simply deletes its stored token (JWTs are stateless).
+
+```json
+{ "data": { "ok": true } }
+```
+
+### GET /auth/me
+
+Auth: any. Returns the user object above. 401 if the token is missing/expired, 403 if blocked.
+
+```json
+{ "data": { "id": "6ae43629208a8118a01261a4", "name": "Meena Shah", "roles": ["buyer"], "…": "see user object" } }
+```
+
+### PATCH /auth/me
+
+Auth: any. Update your own details. Every field is optional; `business` is **merged** into the saved business. `addRole` adds `"buyer"` or `"seller"` (adding `seller` needs the seller fields, either already saved or in this request). Admin accounts may change only `name`, `email`, `mobile`.
+
+```bash
+curl -X PATCH http://localhost:3000/api/v1/auth/me -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{
+  "addRole": "seller",
+  "business": { "type": "wholesaler", "categories": ["pulses"], "address": "5 Crawford Market", "pincode": "400001" }
+}'
+```
+
+```json
+{ "data": { "id": "6ae43629208a8118a01261a4", "roles": ["buyer", "seller"], "business": { "name": "Shah Foods", "type": "wholesaler", "categories": ["pulses"], "address": "5 Crawford Market", "city": "Mumbai", "state": "Maharashtra", "pincode": "400001", "gstNumber": null, "yearsInBusiness": null }, "…": "see user object" } }
+```
+
+400 when adding `seller` without the seller fields:
+
+```json
+{ "error": { "message": "Choose a business type", "fields": { "business.type": "Choose a business type", "business.categories": "Choose at least one category", "business.address": "Enter your full address", "business.pincode": "Enter a 6-digit pincode" } } }
+```
+
+403 for admins sending `business` or `addRole`; 409 if the new email/mobile belongs to someone else.
+
+### POST /auth/change-password
+
+Auth: any. Body `{ "currentPassword": "secret123", "newPassword": "newpass123" }` → `{ "data": { "ok": true } }`.
+
+400 `{ "error": { "message": "Your current password is not correct.", "fields": { "currentPassword": "Not correct" } } }`.
+
+### POST /auth/forgot-password
+
+Auth: public. Body `{ "email": "meena.buyer@example.com" }`. **Always** returns 200 (never reveals whether the email exists). If the account exists and is active, it emails a link `APP_URL/reset-password?token=<64 hex chars>` valid for 1 hour.
+
+```json
+{ "data": { "ok": true } }
+```
+
+In the app, the link opens the website's reset page (no deep link in v1).
+
+### POST /auth/reset-password
+
+Auth: public. Body `{ "token": "<token from the email link>", "password": "newpass123" }` → `{ "data": { "ok": true } }`. The token works once.
+
+400 `{ "error": { "message": "This reset link is invalid or has expired. Please ask for a new one.", "fields": { "token": "Invalid or expired" } } }`.

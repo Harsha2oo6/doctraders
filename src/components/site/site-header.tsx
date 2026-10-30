@@ -7,6 +7,7 @@ import { useState, type SyntheticEvent, type ReactNode } from "react";
 import { DEFAULT_CATEGORIES as CATEGORIES } from "@/lib/constants";
 import { Button, Container, Logo, cn } from "@/components/ui";
 import { categoryIcon } from "@/components/category-icon";
+import { homeFor, isAdminRole, useMe } from "@/lib/me";
 
 type MenuItem = { href: string; label: string; hint?: string };
 
@@ -87,6 +88,7 @@ function MenuLink({ item }: { item: MenuItem }) {
 /** Alibaba-style header: utility bar, logo + big search, then a navigation strip with dropdowns. */
 export function SiteHeader() {
   const router = useRouter();
+  const { me, logout } = useMe();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [category, setCategory] = useState("");
@@ -131,13 +133,27 @@ export function SiteHeader() {
         </form>
 
         <div className="ml-auto flex items-center gap-2 md:ml-0">
-          <div className="hidden h-16 items-center text-sm font-medium text-ink-800 sm:flex">
-            <Dropdown align="right" trigger={<Link href="/login" className="px-1 hover:text-ink-950">Sign in</Link>}>
-              <MenuLink item={{ href: "/login", label: "Sign in", hint: "Buyers and sellers" }} />
-              <MenuLink item={{ href: "/register", label: "Join free", hint: "Create your business account" }} />
-            </Dropdown>
-          </div>
-          <Button asChild className="rounded-full"><Link href="/register">Join free</Link></Button>
+          {me ? (
+            <div className="flex h-16 items-center gap-3 text-sm font-medium text-ink-800">
+              <Link href={homeFor(me.roles)} className="hidden px-1 hover:text-ink-950 sm:block">{isAdminRole(me.roles) ? "Admin" : "Dashboard"}</Link>
+              <Dropdown align="right" trigger={<span className="grid size-9 place-items-center rounded-full bg-ink-900 text-sm font-semibold text-white" aria-label="Account menu">{me.name.charAt(0).toUpperCase()}</span>}>
+                <p className="truncate px-3 py-2 text-xs text-ink-500">{me.name}</p>
+                <MenuLink item={{ href: homeFor(me.roles), label: isAdminRole(me.roles) ? "Admin panel" : "Dashboard" }} />
+                {!isAdminRole(me.roles) && <MenuLink item={{ href: "/dashboard/profile", label: "Profile" }} />}
+                <button onClick={logout} className="block w-full cursor-pointer rounded-md px-3 py-2 text-left text-sm font-medium text-ink-900 hover:bg-brand-50">Log out</button>
+              </Dropdown>
+            </div>
+          ) : (
+            <>
+              <div className="hidden h-16 items-center text-sm font-medium text-ink-800 sm:flex">
+                <Dropdown align="right" trigger={<Link href="/login" className="px-1 hover:text-ink-950">Sign in</Link>}>
+                  <MenuLink item={{ href: "/login", label: "Sign in", hint: "Buyers and sellers" }} />
+                  <MenuLink item={{ href: "/register", label: "Join free", hint: "Create your business account" }} />
+                </Dropdown>
+              </div>
+              <Button asChild className="rounded-full"><Link href="/register">Join free</Link></Button>
+            </>
+          )}
         </div>
       </Container>
 
@@ -186,7 +202,7 @@ export function SiteHeader() {
               <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search products" aria-label="Search products" className="min-w-0 flex-1 px-4 text-sm outline-none" />
               <button type="submit" aria-label="Search" className="bg-brand-500 px-4 text-white"><Search className="size-4" /></button>
             </form>
-            {[{ href: "/listings", label: "Browse listings" }, ...MENUS.map((m) => ({ href: m.href, label: m.label })), { href: "/categories", label: "All categories" }, { href: "/login", label: "Sign in" }].map((n) => (
+            {[{ href: "/listings", label: "Browse listings" }, ...MENUS.map((m) => ({ href: m.href, label: m.label })), { href: "/categories", label: "All categories" }, me ? { href: homeFor(me.roles), label: isAdminRole(me.roles) ? "Admin panel" : "Dashboard" } : { href: "/login", label: "Sign in" }].map((n) => (
               <Link key={n.label} href={n.href} onClick={() => setOpen(false)} className="block rounded-lg px-3 py-2.5 text-sm font-medium text-ink-800 hover:bg-ink-50">{n.label}</Link>
             ))}
           </Container>

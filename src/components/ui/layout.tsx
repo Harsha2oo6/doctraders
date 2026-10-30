@@ -44,12 +44,25 @@ export function PageHeader({ title, description, actions }: { title: string; des
   );
 }
 
-export function EmptyState({ title, children }: { title: string; children?: ReactNode }) {
+export function EmptyState({ title, children, action }: { title: string; children?: ReactNode; action?: ReactNode }) {
   return (
     <div className="rounded-xl border border-dashed border-ink-200 bg-white p-10 text-center">
       <p className="font-semibold text-ink-900">{title}</p>
       {children && <p className="mt-1 text-sm text-ink-500">{children}</p>}
+      {action && <div className="mt-4 flex justify-center">{action}</div>}
     </div>
+  );
+}
+
+/** DESIGN.md 6.14 error state with a retry button. */
+export function ErrorState({ message, onRetry }: { message?: string; onRetry?: () => void }) {
+  return (
+    <EmptyState
+      title="Something went wrong"
+      action={onRetry && <button onClick={onRetry} className="inline-flex h-8 cursor-pointer items-center justify-center rounded-lg border border-ink-200 bg-white px-3 text-sm font-semibold text-ink-900 transition-colors hover:bg-ink-50">Try again</button>}
+    >
+      {message}
+    </EmptyState>
   );
 }
 

@@ -25,15 +25,23 @@ Select.displayName = "Select";
 
 /** Label + control + error message in one block, so every form looks the same. */
 export function Field({
-  label, error, hint, children, className,
-}: { label: string; error?: string; hint?: string; children: ReactNode; className?: string }) {
+  label, error, hint, children, className, required, optional, as = "label",
+}: {
+  label: string; error?: string; hint?: string; children: ReactNode; className?: string;
+  required?: boolean; optional?: boolean; as?: "label" | "div";
+}) {
+  const Wrapper = as;
   return (
-    <label className={cn("block space-y-1.5", className)}>
-      <span className="text-sm font-medium text-ink-900">{label}</span>
+    <Wrapper className={cn("block space-y-1.5", className)}>
+      <span className="text-sm font-medium text-ink-900">
+        {label}
+        {required && <span className="text-danger"> *</span>}
+        {optional && <span className="text-xs font-normal text-ink-400"> (optional)</span>}
+      </span>
       {children}
       {hint && !error && <span className="block text-xs text-ink-400">{hint}</span>}
       {error && <span role="alert" className="block text-xs text-danger">{error}</span>}
-    </label>
+    </Wrapper>
   );
 }
 
@@ -47,4 +55,10 @@ export function Checkbox({ label, error, ...props }: InputHTMLAttributes<HTMLInp
       {error && <span role="alert" className="mt-1 block text-xs text-danger">{error}</span>}
     </div>
   );
+}
+
+/** Server/form-level error above the submit button. */
+export function FormError({ children }: { children?: ReactNode }) {
+  if (!children) return null;
+  return <p role="alert" className="text-sm text-danger">{children}</p>;
 }
