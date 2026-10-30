@@ -76,7 +76,7 @@ Audited against the code on 2026-10-30 (Prompt 0, commit after `8e83263`). Statu
 
 **Progress** (the agent ticks these):
 - [x] Prompt 0 — Audit current code
-- [ ] Prompt 1 — One app, mocks removed, UI unchanged
+- [x] Prompt 1 — One app, mocks removed, UI unchanged
 - [ ] Prompt 2 — Backend foundation + API conventions
 - [ ] Prompt 3 — Auth API + login/register/profile wired
 - [ ] Prompt 4 — Listings + uploads API + listing screens wired
