@@ -3,6 +3,7 @@ import {
   CATEGORY_EXAMPLES, ENQUIRY_PARTY_STATUS, aliasFor,
   type EnquiryStatus, type ListingKind, type TradeRole,
 } from "@/lib/constants";
+import type { AdminDeal, AdminEnquiry, AdminListing, AppNotification, ContactCard, PartyDeal, PartyEnquiry, PublicListing } from "@/lib/types";
 
 /**
  * Privacy rules live here (README §3.6–3.8):
@@ -71,14 +72,14 @@ export function adminUser(u: UserLike) {
 }
 
 /** ADMIN ONLY: compact contact card for enquiry/deal screens. */
-export function contactCard(u: UserLike | null | undefined) {
+export function contactCard(u: UserLike | null | undefined): ContactCard | null {
   if (!u) return null;
   return {
     id: String(u._id),
     name: u.name,
     email: u.email,
     mobile: u.mobile,
-    status: u.status,
+    status: u.status as ContactCard["status"],
     publicCode: u.publicCode ?? null,
     businessName: u.business?.name ?? null,
     businessType: u.business?.type ?? null,
@@ -118,7 +119,7 @@ export type ListingLike = {
 const ownerRole = (kind: string): TradeRole => (kind === "offer" ? "seller" : "buyer");
 
 /** Public / party view: owner shown as an alias only. */
-export function publicListing(l: ListingLike, owner: CodeLike | null | undefined) {
+export function publicListing(l: ListingLike, owner: CodeLike | null | undefined): PublicListing {
   return {
     id: String(l._id),
     kind: l.kind as ListingKind,
@@ -136,12 +137,12 @@ export function publicListing(l: ListingLike, owner: CodeLike | null | undefined
     owner: alias(owner, ownerRole(l.kind)),
     createdAt: iso(l.createdAt),
     updatedAt: iso(l.updatedAt),
-  };
+  } as PublicListing;
 }
 
 /** ADMIN ONLY: + enquiry count + owner's contact details. */
-export function adminListing(l: ListingLike, owner: UserLike | null | undefined) {
-  return { ...publicListing(l, owner), enquiryCount: l.enquiryCount ?? 0, owner: { ...alias(owner, ownerRole(l.kind)), ...contactCard(owner) } };
+export function adminListing(l: ListingLike, owner: UserLike | null | undefined): AdminListing {
+  return { ...publicListing(l, owner), enquiryCount: l.enquiryCount ?? 0, owner: { ...alias(owner, ownerRole(l.kind)), ...contactCard(owner) } } as AdminListing;
 }
 
 /* ---------------- enquiries ---------------- */
@@ -155,7 +156,7 @@ export type EnquiryLike = {
 };
 
 /** Party view: party status only ("received", "in_discussion"…), no notes, other side as alias. */
-export function partyEnquiry(e: EnquiryLike, viewerId: Id, counterparty: CodeLike | null | undefined) {
+export function partyEnquiry(e: EnquiryLike, viewerId: Id, counterparty: CodeLike | null | undefined): PartyEnquiry {
   const myRole: TradeRole = String(e.buyerId) === String(viewerId) ? "buyer" : "seller";
   return {
     id: String(e._id),
@@ -170,14 +171,14 @@ export function partyEnquiry(e: EnquiryLike, viewerId: Id, counterparty: CodeLik
     dealId: sid(e.dealId),
     createdAt: iso(e.createdAt),
     updatedAt: iso(e.updatedAt),
-  };
+  } as PartyEnquiry;
 }
 
 /** ADMIN ONLY: full detail with both parties' contact details, notes and history. */
 export function adminEnquiry(
   e: EnquiryLike,
   ctx: { buyer?: UserLike | null; seller?: UserLike | null; listing?: ListingLike | null; listingOwner?: UserLike | null },
-) {
+): AdminEnquiry {
   return {
     id: String(e._id),
     listingId: String(e.listingId),
@@ -198,7 +199,7 @@ export function adminEnquiry(
     dealId: sid(e.dealId),
     createdAt: iso(e.createdAt),
     updatedAt: iso(e.updatedAt),
-  };
+  } as AdminEnquiry;
 }
 
 /* ---------------- deals ---------------- */
@@ -246,7 +247,7 @@ const shipmentOut = (x: NonNullable<DealLike["shipments"]>[number], withBy: bool
 });
 
 /** Party view: no commission, no admin notes, other side as alias. */
-export function partyDeal(d: DealLike, viewerId: Id, counterparty: CodeLike | null | undefined) {
+export function partyDeal(d: DealLike, viewerId: Id, counterparty: CodeLike | null | undefined): PartyDeal {
   const myRole: TradeRole = String(d.buyerId) === String(viewerId) ? "buyer" : "seller";
   return {
     id: String(d._id),
@@ -265,11 +266,11 @@ export function partyDeal(d: DealLike, viewerId: Id, counterparty: CodeLike | nu
     shipments: (d.shipments ?? []).map((x) => shipmentOut(x, false)),
     createdAt: iso(d.createdAt),
     updatedAt: iso(d.updatedAt),
-  };
+  } as PartyDeal;
 }
 
 /** ADMIN ONLY: everything, incl. commission and both parties' contact details. */
-export function adminDeal(d: DealLike, ctx: { buyer?: UserLike | null; seller?: UserLike | null } = {}) {
+export function adminDeal(d: DealLike, ctx: { buyer?: UserLike | null; seller?: UserLike | null } = {}): AdminDeal {
   return {
     id: String(d._id),
     code: d.code,
@@ -297,13 +298,13 @@ export function adminDeal(d: DealLike, ctx: { buyer?: UserLike | null; seller?: 
     createdBy: sid(d.createdBy),
     createdAt: iso(d.createdAt),
     updatedAt: iso(d.updatedAt),
-  };
+  } as AdminDeal;
 }
 
 /* ---------------- notifications ---------------- */
 
 type NotificationLike = { _id: Id; type: string; title: string; body?: string | null; link?: string | null; read: boolean; createdAt?: MaybeDate };
 
-export function notificationOut(n: NotificationLike) {
-  return { id: String(n._id), type: n.type, title: n.title, body: n.body ?? null, link: n.link ?? null, read: n.read, createdAt: iso(n.createdAt) };
+export function notificationOut(n: NotificationLike): AppNotification {
+  return { id: String(n._id), type: n.type, title: n.title, body: n.body ?? null, link: n.link ?? null, read: n.read, createdAt: iso(n.createdAt) } as AppNotification;
 }

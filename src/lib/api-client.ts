@@ -81,6 +81,31 @@ export async function apiList<T>(path: string, opts?: Options): Promise<ApiList<
   return send(path, opts);
 }
 
+/**
+ * multipart upload with progress (fetch has no upload progress, so this uses XHR).
+ * Same endpoint and response shape as apiFetch.
+ */
+export function apiUpload<T>(path: string, form: FormData, onProgress?: (percent: number) => void): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", buildUrl(path));
+    xhr.withCredentials = true;
+    xhr.upload.onprogress = (e) => e.lengthComputable && onProgress?.(Math.round((e.loaded / e.total) * 100));
+    xhr.onerror = () => reject(new ApiError("Could not reach the server. Check your connection and try again.", 0));
+    xhr.onload = () => {
+      let json: { data?: T; error?: { message?: string; fields?: Record<string, string> } } | null = null;
+      try {
+        json = JSON.parse(xhr.responseText);
+      } catch {
+        /* non-JSON */
+      }
+      if (xhr.status >= 200 && xhr.status < 300) resolve(json?.data as T);
+      else reject(new ApiError(json?.error?.message ?? `Upload failed (${xhr.status})`, xhr.status, json?.error?.fields ?? {}));
+    };
+    xhr.send(form);
+  });
+}
+
 export interface QueryState<T> {
   data: T | undefined;
   loading: boolean;

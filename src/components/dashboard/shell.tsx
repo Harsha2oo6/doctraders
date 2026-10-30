@@ -1,9 +1,9 @@
 "use client";
 
-import { Handshake, Inbox, LayoutDashboard, LogOut, PlusCircle, Search, UserRound, type LucideIcon } from "lucide-react";
+import { ClipboardList, Handshake, Inbox, LayoutDashboard, LogOut, Package, PlusCircle, UserRound, type LucideIcon } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, type ReactNode } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, type ReactNode } from "react";
 import { useMe } from "@/lib/me";
 import { Logo, Spinner, StatusBadge, cn } from "@/components/ui";
 
@@ -11,14 +11,40 @@ type NavItem = { href: string; label: string; icon: LucideIcon; show?: (roles: s
 
 const NAV: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
-  { href: "/dashboard/marketplace", label: "Marketplace", icon: Search },
-  { href: "/dashboard/post", label: "Post", icon: PlusCircle },
+  { href: "/dashboard/listings?tab=offer", label: "My products", icon: Package, show: (r) => r.includes("seller") },
+  { href: "/dashboard/listings?tab=requirement", label: "My requirements", icon: ClipboardList, show: (r) => r.includes("buyer") },
+  { href: "/dashboard/listings/new", label: "Post", icon: PlusCircle },
   { href: "/dashboard/enquiries", label: "My enquiries", icon: Inbox },
   { href: "/dashboard/deals", label: "My deals", icon: Handshake },
   { href: "/dashboard/profile", label: "Profile", icon: UserRound },
 ];
 
-const isActive = (pathname: string, href: string) => (href === "/dashboard" ? pathname === href : pathname.startsWith(href));
+function isActive(pathname: string, tab: string | null, href: string, roles: string[]) {
+  const [path, query] = href.split("?");
+  if (path === "/dashboard") return pathname === path;
+  if (path === "/dashboard/listings") {
+    if (pathname !== path) return false;
+    const want = new URLSearchParams(query).get("tab");
+    const current = tab ?? (roles.includes("seller") ? "offer" : "requirement");
+    return want === current;
+  }
+  return pathname.startsWith(path!);
+}
+
+/** Nav links (separate component because it reads the query string). */
+function Nav({ roles }: { roles: string[] }) {
+  const pathname = usePathname();
+  const tab = useSearchParams().get("tab");
+  return (
+    <nav className="mt-4 flex gap-1 overflow-x-auto lg:mt-8 lg:flex-col" aria-label="Dashboard">
+      {NAV.filter((n) => !n.show || n.show(roles)).map(({ href, label, icon: Icon }) => (
+        <Link key={href} href={href} className={cn("flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium hover:bg-ink-800", isActive(pathname, tab, href, roles) && "bg-ink-800 text-brand-300")}>
+          <Icon className="size-4" />{label}
+        </Link>
+      ))}
+    </nav>
+  );
+}
 
 /** DESIGN.md 5.11: dark sidebar layout for buyers and sellers. Middleware already checked the token. */
 export function DashboardShell({ children }: { children: ReactNode }) {
@@ -38,13 +64,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     <div className="min-h-screen lg:grid lg:grid-cols-[16rem_1fr]">
       <aside className="border-b border-ink-800 bg-ink-900 p-4 text-ink-100 lg:sticky lg:top-0 lg:h-screen lg:border-b-0">
         <Link href="/" aria-label="Doctraders home"><Logo dark /></Link>
-        <nav className="mt-4 flex gap-1 overflow-x-auto lg:mt-8 lg:flex-col" aria-label="Dashboard">
-          {NAV.filter((n) => !n.show || n.show(roles)).map(({ href, label, icon: Icon }) => (
-            <Link key={href} href={href} className={cn("flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium hover:bg-ink-800", isActive(pathname, href) && "bg-ink-800 text-brand-300")}>
-              <Icon className="size-4" />{label}
-            </Link>
-          ))}
-        </nav>
+        <Suspense fallback={null}><Nav roles={roles} /></Suspense>
         <div className="mt-4 hidden lg:absolute lg:bottom-4 lg:left-4 lg:right-4 lg:block">
           <p className="truncate text-sm font-semibold text-white">{title}</p>
           <p className="truncate text-xs text-ink-300">{me.name}</p>

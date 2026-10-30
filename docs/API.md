@@ -5,6 +5,7 @@ The website and the Android/iOS app use **the same endpoints**. This file is the
 - [Conventions](#conventions)
 - [System](#system): health, meta
 - [Auth & profile](#auth--profile): register, login, logout, me, change/forgot/reset password
+- [Categories, listings & uploads](#categories-listings--uploads)
 <!-- sections are appended below by each feature -->
 
 ---
@@ -302,3 +303,144 @@ In the app, the link opens the website's reset page (no deep link in v1).
 Auth: public. Body `{ "token": "<token from the email link>", "password": "newpass123" }` → `{ "data": { "ok": true } }`. The token works once.
 
 400 `{ "error": { "message": "This reset link is invalid or has expired. Please ask for a new one.", "fields": { "token": "Invalid or expired" } } }`.
+
+---
+
+## Categories, listings & uploads
+
+The **public listing** object (used by every non-admin listing response). The owner is only an alias; no name, contact, business or GST is ever included:
+
+```json
+{
+  "id": "6ae43aa04eb077eaccb2586b",
+  "kind": "offer",
+  "title": "Basmati rice 1121, 25 kg bags",
+  "category": "rice-grains",
+  "description": "Steam basmati, 8.3mm avg length, broken under 1%.",
+  "quantity": 2000,
+  "unit": "bag",
+  "price": 2450,
+  "minOrderQuantity": 100,
+  "city": "Karnal",
+  "state": "Haryana",
+  "images": ["https://<store>.public.blob.vercel-storage.com/listings/6ae4…/9f1c….jpg"],
+  "status": "active",
+  "owner": { "alias": "Seller #68435" },
+  "createdAt": "2026-10-30T06:35:12.277Z",
+  "updatedAt": "2026-10-30T06:35:12.277Z"
+}
+```
+
+- `kind`: `offer` (a seller selling) or `requirement` (a buyer needs). Owner alias is `Seller #…` for offers, `Buyer #…` for requirements.
+- `price` is per `unit` in INR; `null` means "Price on request". `minOrderQuantity` may be `null`.
+- `images[0]` is the cover. Offers have 1–6 photos, requirements 0–6.
+- `status`: `active` (live), `closed` (by the owner), `blocked` (by an admin).
+
+### GET /categories
+
+Auth: public. Active categories in display order (same list as `meta.categories`).
+
+```json
+{ "data": [ { "id": "6ae433edb48dbeb87a5ec4fb", "name": "Rice & Grains", "slug": "rice-grains", "order": 0, "examples": "Basmati, non-basmati, wheat, maize, millets" } ] }
+```
+
+### POST /uploads
+
+Auth: user or admin. One image per call, `multipart/form-data` with the field **`file`**. JPEG, PNG or WebP, max 4 MB (`meta.uploads`). Stored on Vercel Blob; returns the public URL to put in a listing's `images`.
+
+```bash
+curl -X POST http://localhost:3000/api/v1/uploads -H "Authorization: Bearer $TOKEN" -F "file=@rice.jpg;type=image/jpeg"
+```
+
+201:
+
+```json
+{ "data": { "url": "https://<store>.public.blob.vercel-storage.com/listings/6ae43628208a8118a0126195/9f1c2b7e4d0a5c3e8b6f1a2d.jpg" } }
+```
+
+Errors: 400 `{ "error": { "message": "Upload a JPG, PNG or WebP image.", "fields": { "file": "…" } } }`, 413 (over 4 MB), 401, and **503** when image storage is not configured:
+
+```json
+{ "error": { "message": "Image uploads are not set up yet (BLOB_READ_WRITE_TOKEN is missing). Please try again later." } }
+```
+
+App flow: compress/resize on the device (the website resizes to max 1600 px JPEG), upload each photo, collect the URLs, then send them in `POST /listings`. Photo URLs that are not on the Blob store are rejected.
+
+### GET /listings
+
+Auth: public. Active listings only (blocked owners and closed/blocked listings never appear), newest first, paginated.
+
+Query: `kind` (`offer`|`requirement`), `category` (slug), `q` (matches title, description, city), `state` (exact, from `meta.states`), `city`, `page`, `limit` (max 50).
+
+```bash
+curl "http://localhost:3000/api/v1/listings?kind=offer&q=basmati&limit=5"
+```
+
+```json
+{ "data": [ { "id": "6ae43aa04eb077eaccb2586b", "kind": "offer", "title": "Basmati rice 1121, 25 kg bags", "owner": { "alias": "Seller #68435" }, "…": "public listing object" } ], "page": 1, "limit": 5, "total": 1 }
+```
+
+### GET /listings/:id
+
+Auth: public (token optional). One active listing. If the token belongs to the **owner**, their own closed or blocked listing is returned too (for the edit screen). Otherwise 404 `{ "error": { "message": "This listing is not available." } }`.
+
+### POST /listings
+
+Auth: `seller` for `kind: "offer"`, `buyer` for `kind: "requirement"` (403 otherwise). Live immediately.
+
+```bash
+curl -X POST http://localhost:3000/api/v1/listings -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{
+  "kind": "offer", "title": "Basmati rice 1121, 25 kg bags", "category": "rice-grains",
+  "description": "Steam basmati, 8.3mm avg length, broken under 1%.",
+  "quantity": 2000, "unit": "bag", "price": 2450, "minOrderQuantity": 100,
+  "city": "Karnal", "state": "Haryana",
+  "images": ["https://<store>.public.blob.vercel-storage.com/listings/…/9f1c….jpg"]
+}'
+```
+
+| Field | Rule |
+| --- | --- |
+| `kind` | `offer` or `requirement` |
+| `title` | 5–120 chars |
+| `category` | an active category slug |
+| `description` | 10–3000 chars |
+| `quantity` | > 0 |
+| `unit` | one of `meta.units` |
+| `price` | optional, > 0 (omit for "price on request") |
+| `minOrderQuantity` | optional, > 0, ≤ `quantity` |
+| `city`, `state` | required; `state` from `meta.states` |
+| `images` | Blob URLs from `/uploads`, max 6; offers need at least 1 |
+
+201 → public listing object. 400 example:
+
+```json
+{ "error": { "message": "Add at least one photo", "fields": { "images": "Add at least one photo" } } }
+```
+
+403 example: `{ "error": { "message": "Only buyers can post requirements. Add the buyer role in your profile." } }`.
+
+### PATCH /listings/:id
+
+Auth: owner (404 for anyone else). Any subset of the POST fields except `kind`; `price: null` / `minOrderQuantity: null` clear them. `status` may be `active` or `closed`. A listing **blocked by an admin cannot be re-opened** by the owner (403).
+
+```bash
+curl -X PATCH http://localhost:3000/api/v1/listings/6ae43aa04eb077eaccb2586b -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{ "price": 2400, "status": "closed" }'
+```
+
+200 → public listing object.
+
+### DELETE /listings/:id
+
+Auth: owner. Hard delete if nobody has shown interest yet; otherwise the listing is closed (enquiries keep their history).
+
+```json
+{ "data": { "deleted": true, "closed": false } }
+```
+
+### GET /me/listings
+
+Auth: user. Your own listings, all statuses, newest first. Query: `kind`, `status`, `page`, `limit`.
+
+```json
+{ "data": [ { "id": "6ae43aa04eb077eaccb2586b", "status": "closed", "…": "public listing object" } ], "page": 1, "limit": 20, "total": 1 }
+```

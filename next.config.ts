@@ -5,6 +5,9 @@ const config: NextConfig = {
   // Pin the project root (a stray lockfile higher up the disk otherwise confuses Next).
   outputFileTracingRoot: path.resolve("."),
   turbopack: { root: path.resolve(".") },
+  images: {
+    remotePatterns: [{ protocol: "https", hostname: "*.public.blob.vercel-storage.com" }],
+  },
 };
 
 export default config;

@@ -4,7 +4,8 @@ import { ChevronDown, LayoutGrid, Menu, Search, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type SyntheticEvent, type ReactNode } from "react";
-import { DEFAULT_CATEGORIES as CATEGORIES } from "@/lib/constants";
+import { DEFAULT_CATEGORIES } from "@/lib/constants";
+import { useMeta } from "@/lib/meta";
 import { Button, Container, Logo, cn } from "@/components/ui";
 import { categoryIcon } from "@/components/category-icon";
 import { homeFor, isAdminRole, useMe } from "@/lib/me";
@@ -15,16 +16,16 @@ const MENUS: { label: string; href: string; items?: MenuItem[] }[] = [
   {
     label: "Buyers", href: "/buyers",
     items: [
-      { href: "/register", label: "Post a requirement", hint: "Let verified sellers come to you" },
-      { href: "/listings?type=offer", label: "Browse offers", hint: "Goods ready to ship" },
+      { href: "/dashboard/listings/new?kind=requirement", label: "Post a requirement", hint: "Tell sellers what you need" },
+      { href: "/listings?kind=offer", label: "Browse offers", hint: "Goods ready to ship" },
       { href: "/buyers", label: "How buying works" },
     ],
   },
   {
     label: "Sellers", href: "/sellers",
     items: [
-      { href: "/register", label: "Post an offer", hint: "Reach verified buyers" },
-      { href: "/listings?type=requirement", label: "Browse buyer requirements", hint: "See what buyers need" },
+      { href: "/dashboard/listings/new?kind=offer", label: "Post an offer", hint: "Reach buyers across India" },
+      { href: "/listings?kind=requirement", label: "Browse buyer requirements", hint: "See what buyers need" },
       { href: "/sellers", label: "How selling works" },
     ],
   },
@@ -89,6 +90,8 @@ function MenuLink({ item }: { item: MenuItem }) {
 export function SiteHeader() {
   const router = useRouter();
   const { me, logout } = useMe();
+  const { meta } = useMeta();
+  const CATEGORIES = meta?.categories ?? DEFAULT_CATEGORIES;
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [category, setCategory] = useState("");
