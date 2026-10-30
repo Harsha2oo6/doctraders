@@ -1,0 +1,3 @@
+@import "../../../../packages/ui/src/theme.css";
+/* Tell Tailwind to also scan the shared UI package for class names. */
+@source "../../../../packages/ui/src";
